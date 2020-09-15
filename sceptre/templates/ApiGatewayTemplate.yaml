@@ -1,0 +1,207 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Deploy the API Gateway Service Catalog Product
+Parameters:
+  CatalogVersion:
+    Type: String
+    Description: Service Catalog version   
+
+  # Must be provided by env/region specific config  
+  ApiName:
+    Type: String
+    Description: String for Api Name
+  ApiDescription:
+    Type: String
+    Description: (optional) API description
+    Default: ""
+  ApiEndpoint:
+    Type: String
+    Description: API Endpoint
+    Default: ""
+  EndpointType:
+    Type: String
+    Description: (optional) Type of API Gateway (PRIVATE, REGIONAL, EDGE), defaulted to PRIVATE.
+    Default: PRIVATE
+  ApiSpecS3Bucket:
+    Type: String
+    Description: (required) S3 Bucket containing OpenAPI spec
+  ApiSpecS3Key:
+    Type: String
+    Description: (required) S3 Key for OpenAPI spec
+  ApiSpecS3Version:
+    Type: String
+    Description: (optional) S3 Object version for OpenAPI spec
+    Default: ""
+  ApiSpecS3ETag:
+    Type: String
+    Description: (optional) S3 ETag file checksum for OpenAPI spec
+    Default: ""
+  MinimumCompressionSize:
+    Type: Number
+    Description: (optional) Minimum Payload size in bytes to compress (max 10485760). Set to -1 to disable, or set to 0 to compress all payloads
+    Default: -1
+  NlbArns:
+    Type: String
+    Description: Comma delimited list of NLB ARNs
+    Default: ""  
+  GatewayType:
+    Type: String
+    Description: Choose PrivateIamSecured for a Private APIG that requires IAM Auth, or PublicJwtSecured for a Public (Regional) API Gateway that requires SSO JWT Tokens.
+    Default: PrivateIamSecured
+    AllowedValues:
+      - PrivateIamSecured
+      - PublicJwtSecured
+  RateLimit:
+    Type: Number
+    Description: Maximum API calls per Method per 1s interval.
+    Default: 1000
+  BurstLimit:
+    Type: Number
+    Description: Maximum API calls per Method per 1s interval.
+    Default: 100
+  # Provided if available
+  ConsumerRoleArnJSONArray:
+    Type: String
+    Description: JSON Array of Consumer IAM Role ARNs
+    Default: ""
+  ConsumerVpceIdJSONArray:
+    Type: String
+    Description: JSON Array of  Consumer VPC Endpoint IDs
+    Default: ""
+  RequireApiKey:
+    Type: String
+    Description: (optional) Set to false to not require API Keys.
+    Default: true
+    AllowedValues:
+      - true
+      - false
+  ResourcePolicy:
+    Type: String
+    Description: Who can invoke our API.
+  DisableIamAuth:
+    Type: String
+    Description: (optional) Set to true to disable IAM Auth for Public API Gateways (please be very mindful and careful with this).
+    Default: false
+  DisableSetupLambda:
+    Type: String
+    Description: (optional) Set to true to disable lambda function that wires up VPCs and lambda proxy, use this if you want to have multiple lambda functions
+  # CustomLambdaProxyS3Key:
+  #   Type: String
+  #   Description: file holding greedy path yaml
+  # CustomLambdaProxyS3Bucket:
+  #   Type: String
+  #   Description: bucket holding proxy lambda function info
+  # CustomLambdaProxyFunctionName:
+  #   Type: String
+  #   Description: Custom Proxy instead of pregenerated one.
+  
+  # Pull useful ATOM data from SSM Parameter Store
+  DevelopmentTeam:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: SSM Parameter for team owning the created resources.
+    Default: /AdminParams/Team/Name
+    AllowedValues:
+      - /AdminParams/Team/Name
+  DevelopmentEnvironment:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: SSM Parameter for development environment this will live in.
+    Default: /AdminParams/Team/Environment
+    AllowedValues:
+      - /AdminParams/Team/Environment
+  CustomDomainName:
+    Type: String
+    Description: (optional) Custom Domain Name
+    Default: ""
+  CustomDomainAcmCertificateId:
+    Type: String
+    Description: (optional) ID of the ACM Certificate to use for the Custom Domain Name
+    Default: ""
+  DesiredBasePath:
+    Type: String
+    Description: (optional) Base Path for Custom Domains
+    Default: ""
+
+Conditions:
+  ConsumerWhitelistProvided: !And
+    - !Not [ !Equals [ !Ref ConsumerRoleArnJSONArray, "" ] ]
+    - !Not [ !Equals [ !Ref ConsumerVpceIdJSONArray, "" ] ]
+  IsPrivateGateway: !Equals [ !Ref GatewayType, PrivateIamSecured ]
+  IsPublicGateway: !Equals [ !Ref GatewayType, PublicJwtSecured ]
+
+Resources:
+  # Create a Private Gateway that requires IAM signed (SigV4) requests
+  PrivateApiGateway:
+    Type: AWS::ServiceCatalog::CloudFormationProvisionedProduct
+    Condition: IsPrivateGateway
+    Properties:
+      ProductName: APIGateway
+      ProvisioningArtifactName: !Ref CatalogVersion 
+      ProvisionedProductName: !Sub "${ApiName}-ApiGateway"
+      ProvisioningParameters:
+        # required parameters
+        - Key: ApiName
+          Value: !Ref ApiName
+        - Key: ApiDescription
+          Value: !Ref ApiDescription
+
+        - Key: EndpointType
+          Value: !Ref EndpointType
+        - Key: RequireApiKey
+          Value: !Ref RequireApiKey
+        - Key: ResourcePolicy
+          Value: !Ref ResourcePolicy
+          
+          #default is ""
+        - Key: ApiEndpoint
+          Value: !Ref ApiEndpoint
+
+        - Key: DisableSetupLambda
+          Value: !Ref DisableSetupLambda
+        - Key: ApiSpecS3Bucket
+          Value: !Ref ApiSpecS3Bucket
+        - Key: ApiSpecS3Key
+          Value: !Ref ApiSpecS3Key     
+        
+        # - Key: CustomLambdaProxyFunctionName
+        #   Value: !Ref CustomLambdaProxyFunctionName  
+        # - Key: CustomLambdaProxyS3Bucket
+        #   Value: !Ref CustomLambdaProxyS3Bucket     
+        # - Key: CustomLambdaProxyS3Key
+        #   Value: !Ref CustomLambdaProxyS3Key           
+        
+        # Custom Domain
+        - Key: CustomDomainName
+          Value: !Ref CustomDomainName 
+        - Key: CustomDomainAcmCertificateId
+          Value: !Ref CustomDomainAcmCertificateId  
+        - Key: DesiredBasePath
+          Value: !Ref DesiredBasePath
+
+        # common optional parameters
+        - Key: ApiSpecS3Version
+          Value: !Ref ApiSpecS3Version          
+        - Key: MinimumCompressionSize
+          Value: !Ref MinimumCompressionSize
+        - Key: RateLimit
+          Value: !Ref RateLimit
+        - Key: BurstLimit
+          Value: !Ref BurstLimit
+        - Key: ResponseTimeoutMS
+          Value: "10000"
+        - Key: DisableIamAuth
+          Value: !Ref DisableIamAuth
+        - Key: EnableJwtAuth
+          Value: "false"
+        - Key: BinaryMediaTypes
+          Value: "application/octet-stream,image/png"
+      Tags:
+        - Key: doNotShutDown
+          # change to false if it can be turned off outside of business hours
+          Value: true
+
+Outputs:
+  StackArn:
+    Description: API Gateway child stack ARN
+    Value:
+      Fn::GetAtt:
+        - PrivateApiGateway
+        - CloudformationStackArn

@@ -1,0 +1,50 @@
+template_path: "ApiGatewayTemplate.yaml"
+
+parameters:
+  CatalogVersion: "1.5.5" 
+  ApiName: "rev-test-api-2" 
+  ApiDescription: "rev test api 2"
+  
+  # Custom Domain Settings 
+  #CustomDomainName: "paidit.api.int.godaddy.com"  
+  #CustomDomainAcmCertificateId: !get_cert_identifier paidit.api.int.godaddy.com useless {{ region }}
+
+  #Security
+  EndpointType: REGIONAL
+  RequireApiKey: "false"
+  ResourcePolicy: !yaml_to_json ResourcePolicyYaml 
+  
+  #Structure
+  
+  #Set to true to have our own custom lambda proxy
+  DisableSetupLambda: "true"
+
+  #Bucket name and file name of openapi specification that defines api structure
+  ApiSpecS3Bucket:  gd-revenueapi-dev-private-test-apigateway-s3-for-lambda-bucket  # The first param follows the folder structure but / is replaced with a -  
+  # ApiSpecS3Bucket:  !get_stack_output_from_arn "{{ ProjectName }}-{{ region }}-s3-webapi-Paid-IT-apigateway-s3 BucketName" 
+  ApiSpecS3Key: Sales_Order_Schema.yaml
+  
+  #specify our custom lambda proxy info
+  # CustomLambdaProxyFunctionName: "ShopperWebApi"
+  # CustomLambdaProxyS3Bucket:  !get_stack_output_from_arn "{{ ProjectName }}-{{ region }}-s3-webapi-ShopperWebApi-lambda-s3 BucketName"  # The first param follows the folder structure but / is replaced with a -  
+  # CustomLambdaProxyS3Key: "slug.zip"
+
+dependencies:
+  # - "{{ Environment }}/{{ ProjectName }}/{{ region }}/s3/webapi/Paid-IT-apigateway-s3.yaml" 
+  # - "{{ Environment }}/{{ ProjectName }}/{{ region }}/lambda/webapi/ShopperWebApi-lambda.yaml"  
+  # - "{{ Environment }}/{{ ProjectName }}/{{ region }}/lambda/webapi/LeadWebApi-lambda.yaml"    
+  # - "{{ Environment }}/{{ ProjectName }}/{{ region }}/lambda/webapi/EntitlementWebApi-lambda.yaml"
+ 
+  
+sceptre_user_data:
+    ResourcePolicyYaml:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Principal: "*"
+        Action:
+        - execute-api:Invoke
+        - execute-api:InvalidateCache
+        Resource:
+        - arn:aws:execute-api:*:*:*/gddeploy/*
+
