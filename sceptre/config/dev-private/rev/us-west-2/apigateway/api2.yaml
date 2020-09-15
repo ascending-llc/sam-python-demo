@@ -1,7 +1,7 @@
 template_path: "ApiGatewayTemplate.yaml"
 
 parameters:
-  CatalogVersion: {{ ApiGatewayTemplate }} 
+  CatalogVersion: 1.7.0
   ApiName: "rev-test-api-2" 
   ApiDescription: "rev test api 2"
   
