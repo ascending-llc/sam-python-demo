@@ -1,0 +1,7 @@
+template_path: SC_APIGateway.yaml
+parameters:
+  ProvisionedArtifactName: {{ SC_APIGateway }}
+  ApiName: "qs-example-public-api-with-iam"
+  ApiDescription: "This is quickstart public API"
+  ApiSpec: "quickstart/public-apig.yaml"
+  S3BucketName: "gd-team-lambda-bucket-prod-us-west-2"

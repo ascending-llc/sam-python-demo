@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Deploy the API Gateway Service Catalog Product
+Parameters:
+  ProvisionedArtifactName:
+    Type: String
+    Description: The provisioned artifact name/ current product version.
+  ApiName:
+    Type: String
+    Description: A name for this api
+  EndpointProtocol:
+    Type: String
+    Description: "The protocol for the endpoint hostname"
+    Default: "https"
+#  EndpointHostname:
+#    Type: String
+#    Description: "hostname of the quickstart public APIG"
+  S3BucketName:
+    Type: String
+    Description: S3 Bucket name where the lambda function zip is in.
+  ApiSpec:
+    Type: String
+    Description: Name of the zip file of a lambda funciton in S3 bucket
+  RateLimit:
+    Type: Number
+    Description: Maximum API calls per Method per 1s interval.
+    Default: 1000
+  BurstLimit:
+    Type: Number
+    Description: Maximum API calls per Method per 1s interval.
+    Default: 100
+  ConsumerRoleArnJSONArray:
+    Type: String
+    Description: JSON Array of Consumer IAM Role ARNs
+    Default: ""
+  CustomDomainName:
+    Type: String
+    Description: Name of the Custom Domain to be used
+    Default: ""
+  ApiDescription:
+    Type: String
+    Description: Description about the API
+Conditions:
+  ConsumerWhitelistProvided: !Not [ !Equals [ !Ref ConsumerRoleArnJSONArray, "" ] ]
+Resources:
+  RegionalApiGateway:
+    Type: AWS::ServiceCatalog::CloudFormationProvisionedProduct
+    Properties:
+      ProductName: APIGateway
+      ProvisioningArtifactName: !Ref ProvisionedArtifactName
+      ProvisionedProductName: public-apig-example
+      ProvisioningParameters:
+        - Key: ApiName
+          Value: !Ref ApiName
+        - Key: ApiEndpoint
+          Value: !Sub ${EndpointProtocol}://"qs-example-${AWS::AccountId}.com"
+        - Key: ApiSpecS3Bucket
+          Value: !Ref S3BucketName
+        - Key: ApiSpecS3Key
+          Value: !Ref ApiSpec
+        - Key: ApiDescription
+          Value: !Ref ApiDescription
+        - Key: EndpointType
+          Value: REGIONAL
+        - Key: RequireApiKey
+          Value: "false"
+        - Key: DisableIamAuth
+          Value: "false"
+        - Key: EnableJwtAuth
+          Value: "false"
+        - Key: CustomDomainName
+          Value: !Ref CustomDomainName
+        - Key: RateLimit
+          Value: !Ref RateLimit
+        - Key: BurstLimit
+          Value: !Ref BurstLimit
+        - Key: ResponseTimeoutMS
+          Value: "10000"
+        - Key: ResourcePolicy
+          Value: !If
+            - ConsumerWhitelistProvided
+            - !Sub |
+                {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                      {
+                          "Effect": "Allow",
+                          "Principal": {
+                              "AWS": ${ConsumerRoleArnJSONArray}
+                          },
+                          "Action": "execute-api:Invoke",
+                          "Resource": "execute-api:/*"
+                      }
+                  ]
+                }
+            # by default, allow IAM Principals from the owning account to access the API
+            - !Sub |
+                {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                      {
+                          "Effect": "Allow",
+                          "Principal": {
+                              "AWS": "arn:aws:iam::${AWS::AccountId}:root"
+                          },
+                          "Action": "execute-api:Invoke",
+                          "Resource": "execute-api:/*"
+                      }
+                  ]
+                }
+      Tags:
+        - Key: doNotShutDown
+          Value: true

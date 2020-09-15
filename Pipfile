@@ -9,6 +9,7 @@ aws-sam-cli = "*"
 boto3 = "*"
 pytest = "*"
 pytest-mock = "*"
+sceptre = ">=2.3.0"
 
 [requires]
 python_version = '3.8.5'
