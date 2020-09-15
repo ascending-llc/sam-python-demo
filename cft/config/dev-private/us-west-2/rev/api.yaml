@@ -4,4 +4,4 @@ parameters:
   ApiName: "qs-example-public-api-with-iam"
   ApiDescription: "This is quickstart public API"
   ApiSpec: "quickstart/public-apig.yaml"
-  S3BucketName: "gd-team-lambda-bucket-prod-us-west-2"
+  S3BucketName: "gd-revenueapi-dev-private-test-apigateway-s3-for-lambda-bucket"

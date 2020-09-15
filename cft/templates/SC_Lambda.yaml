@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Launch Lambda function product from SC
+Parameters:
+  MemorySize:
+    Type: Number
+    Description: The Memory Size of the Lambda function.
+    Default: 128
+  Timeout:
+    Type: Number
+    Description: Duration after which lambda times out.
+    Default: 30
+  VpcSubnetIds:
+    Type: AWS::SSM::Parameter::Value<List<String>>
+    Description: SSM parameter referencing the private dx subnet IDs
+    Default: /AdminParams/VPC/PrivateSubnets  # Use DXAppSubnets if Lambda needs DirectConnect
+  VpcSecurityGroup:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::SecurityGroup::Id>
+    Description: SSM parameter referencing the private security group ID
+    Default: /AdminParams/VPC/PrivateSG
+  DevelopmentTeam:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: SSM Parameter for team owning the created resources.
+    Default: /AdminParams/Team/Name
+    AllowedValues:
+      - /AdminParams/Team/Name
+  DevelopmentEnvironment:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: SSM Parameter for development environment this will live in.
+    Default: /AdminParams/Team/Environment
+    AllowedValues:
+      - /AdminParams/Team/Environment
+
+Resources:
+  ExampleLambdaFunction:
+    Type: AWS::ServiceCatalog::CloudFormationProvisionedProduct
+    Properties:
+      ProductName: Lambda
+      ProvisioningArtifactName: latest
+      ProvisionedProductName: example-lambda
+      ProvisioningParameters:
+        - Key: S3Bucket
+          Value: !Sub gd-${DevelopmentTeam}-${DevelopmentEnvironment}-test-apigateway-s3-for-lambda-bucket
+        - Key: S3Key
+          Value: lambda_function.zip
+        - Key: Handler
+          Value: lambda_function.lambda_handler
+        - Key: Runtime
+          Value: python3.6
+          # MemorySize and Timeout parameters are mostly environment specific parameters.
+        - Key: MemorySize
+          Value: !Ref MemorySize
+        - Key: Timeout
+          Value: !Ref Timeout
+        - Key: VpcSubnetIds
+          # Need to pass all List params as a String
+          Value: !Join [ ",", !Ref VpcSubnetIds ]
+        - Key: VpcSecurityGroups
+          Value: !Ref VpcSecurityGroup
+          # Optional parameters
+        - Key: LambdaName
+          Value: APIGATEWAY-TEST
+        - Key: InlineCode
+          Value: ""
+      # The below parameter is required only when a Custom IAM role is required.
+      # - Key: CustomIAMRoleNameSuffix
+      #   Value: !Sub ${DevelopmentTeam}-custom-rolenamesuffix
+      # The below parameter is required only when dealing with layers
+      # - Key: LambdaLayers
+      #   Value: !Join
+      #     - ","
+      #     - - "arn:aws:lambda:us-west-2:123456789012:layer:my-layer:1"
+      #       - "arn:aws:lambda:us-west-2:123456789012:layer:other-layer:2"
+      Tags:
+        - Key: doNotShutDown
+          Value: true

@@ -1,0 +1,3 @@
+template_path: SC_S3.yaml
+parameters:
+  ProvisionedArtifactName: {{ SC_S3 }}

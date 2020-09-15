@@ -1,2 +1,4 @@
 project_code: rev-sceptre
 SC_APIGateway: 1.7.0
+SC_LambdaPermission: 1.0.1
+SC_S3: 1.6.0

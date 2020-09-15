@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Launch Lambda function product from SC
+Parameters:
+  ProvisionedArtifactName:
+    Type: String
+    Description: The provisioned artifact name/ current product version.
+Resources:
+  ExampleLambdaFunction:
+    Type: AWS::ServiceCatalog::CloudFormationProvisionedProduct
+    Properties:
+      ProductName: LambdaPermission
+      ProvisioningArtifactName: !Ref ProvisionedArtifactName
+      ProvisionedProductName: lambdapermission-testapigateway
+      ProvisioningParameters:
+        - Key: FunctionName
+          Value: APIGATEWAY-TEST
+        - Key: Action
+          Value: lambda:InvokeFunction
+        - Key: Principal
+          Value: apigateway.amazonaws.com
+      Tags:
+        - Key: doNotShutDown
+          Value: true

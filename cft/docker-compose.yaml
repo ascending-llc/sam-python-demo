@@ -1,0 +1,31 @@
+version: '3'
+services:
+  launch:
+    image: quickstart-container:latest
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./:/data
+    environment:
+      - USERNAME=${USER}
+      - ACTION=launch
+      - STACK=dev-private
+  delete:
+    image: quickstart-container:latest
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./:/data
+    environment:
+      - USERNAME=${USER}
+      - ACTION=delete
+      - STACK=dev-private/us-west-2/rev
+  shell:
+    image: quickstart-container:latest
+    entrypoint: /bin/bash
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./:/data
+    environment:
+      - USERNAME=${USER}
