@@ -12,7 +12,8 @@ parameters:
   #Security
   EndpointType: REGIONAL
   RequireApiKey: "false"
-  ResourcePolicy: !yaml_to_json ResourcePolicyYaml 
+  ResourcePolicy: ""
+  # ResourcePolicy: !yaml_to_json ResourcePolicyYaml 
   
   #Structure
   

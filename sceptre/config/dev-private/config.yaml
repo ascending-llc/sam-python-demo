@@ -1,1 +1,4 @@
 environment: dev-private
+
+ProjectName: rev-sceptre
+Environment: dev-private
