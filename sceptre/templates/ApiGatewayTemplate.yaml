@@ -154,8 +154,8 @@ Resources:
         - Key: ApiEndpoint
           Value: !Ref ApiEndpoint
 
-        - Key: DisableSetupLambda
-          Value: !Ref DisableSetupLambda
+        # - Key: DisableSetupLambda
+        #   Value: !Ref DisableSetupLambda
         - Key: ApiSpecS3Bucket
           Value: !Ref ApiSpecS3Bucket
         - Key: ApiSpecS3Key
