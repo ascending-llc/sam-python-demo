@@ -23,7 +23,7 @@ parameters:
   #Bucket name and file name of openapi specification that defines api structure
   ApiSpecS3Bucket:  gd-revenueapi-dev-private-test-apigateway-s3-for-lambda-bucket  # The first param follows the folder structure but / is replaced with a -  
   # ApiSpecS3Bucket:  !get_stack_output_from_arn "{{ ProjectName }}-{{ region }}-s3-webapi-Paid-IT-apigateway-s3 BucketName" 
-  ApiSpecS3Key: Sales_Order_Schema.yaml
+  ApiSpecS3Key: spec.yaml
   
   #specify our custom lambda proxy info
   # CustomLambdaProxyFunctionName: "ShopperWebApi"
