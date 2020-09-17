@@ -1,0 +1,100 @@
+{
+  "orderId": "1725875897",
+  "customerId": "173182719",
+  "itemLineCount": 2,
+  "orderLegalEntityId": "CMP001",
+  "createdAtLocal": "2020-07-31T19:27:56",
+  "totalResourceAmount": {
+    "amountPaid": {
+      "amount": 314080000,
+      "currencyId": "CAD"
+    },
+    "cost": {
+      "amount": 186980000,
+      "currencyId": "CAD"
+    },
+    "listPrice": {
+      "amount": 314080000,
+      "currencyId": "CAD"
+    }
+  },
+  "totalFees": {
+    "amount": 0,
+    "currencyId": "CAD"
+  },
+  "totalTaxAmount": {
+    "amount": 0,
+    "currencyId": "CAD"
+  },
+  "totalPaymentAmount": {
+    "amount": 314080000,
+    "currencyId": "CAD"
+  },
+  "billToCountry": "CA",
+  "payments": [
+    {
+      "paymentId": 511881521,
+      "amountPaid": {
+        "amount": 314080000,
+        "currencyId": "CAD"
+      },
+      "merchantAccountKey": "CCP_Litle_Canada_GoDaddy_CAD"
+    }
+  ],
+  "orderItems": [
+    {
+      "itemIndex": 0,
+      "resourceId": "485164516",
+      "provisioningLegalEntityId": "CMP001",
+      "servicingLegalEntityId": "CMP001",
+      "duration": {
+        "value": 1,
+        "unit": "YEARS"
+      },
+      "product": {
+        "productId": 174,
+        "productGroup": "Domains",
+        "productCategory": "Domain Registration",
+        "productLine": "Domain Name Premium",
+        "productRuleType": "Type01",
+        "supplier": "Neustar",
+        "domainProduct": {
+          "tld": "CO",
+          "sponsor": "NeuStar"
+        }
+      },
+      "revenueType": "NEW",
+      "resourceAmount": {
+        "amountPaid": {
+          "amount": 46970000,
+          "currencyId": "CAD"
+        },
+        "cost": {
+          "amount": 0,
+          "currencyId": "CAD"
+        },
+        "listPrice": {
+          "amount": 46970000,
+          "currencyId": "CAD"
+        }
+      },
+      "subscription": {
+        "startsAtLocal": "2020-07-31",
+        "endsAtLocal": "2021-07-31"
+      },
+      "taxTotal": {
+        "amount": 0,
+        "currencyId": "CAD"
+      },
+      "taxes": [
+        {
+          "amount": {
+            "amount": 0,
+            "currencyId": "CAD"
+          },
+          "type": "INTERNATIONAL"
+        }
+      ]
+    }
+  ]
+}

@@ -74,7 +74,7 @@ Resources:
         'Fn::Transform':
           Name: 'AWS::Include'
           Parameters:
-            Location: s3://ascending-devops/spec/New_Sales_Order_Schema.yaml
+            Location: s3://ascending-devops/spec/Sales_Order_Schema_Revised.yaml
       # Models: 
       #   Order:
       #     title: Model
