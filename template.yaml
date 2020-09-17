@@ -10,11 +10,11 @@ Globals:
   Function:
     Timeout: 3
 
-  Api:
-    Cors:
-      AllowMethods: "'*'"
-      AllowHeaders: "'*'"
-      AllowOrigin: "'*'"
+  # Api:
+  #   Cors:
+  #     AllowMethods: "'*'"
+  #     AllowHeaders: "'*'"
+  #     AllowOrigin: "'*'"
 
 Resources:
   HelloWorldFunction:
@@ -23,22 +23,22 @@ Resources:
       CodeUri: hello_world/
       Handler: app.lambda_handler
       Runtime: python3.8
-      Events:
-        ApiEvent:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-          Properties:
-            Path: /v1/sourceSystems/{sourceSystemId}/orders
-            Method: post
-            RestApiId: !Ref Api
-            RequestModel: 
-              Model: Order
-              Required: true
-        ApiEvent2:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-          Properties:
-            Path: /v1/sourceSystems/{sourceSystemId}/orders/{orderId}
-            Method: post
-            RestApiId: !Ref Api
+      # Events:
+      #   ApiEvent:
+      #     Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+      #     Properties:
+      #       Path: /v1/sourceSystems/{sourceSystemId}/orders
+      #       Method: post
+      #       RestApiId: !Ref Api
+      #       RequestModel: 
+      #         Model: Order
+      #         Required: true
+      #   ApiEvent2:
+      #     Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+      #     Properties:
+      #       Path: /v1/sourceSystems/{sourceSystemId}/orders/{orderId}
+      #       Method: post
+      #       RestApiId: !Ref Api
 
   HelloWorldFunctionIamRole:
     Type: AWS::IAM::Role
@@ -70,87 +70,108 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: Prod
-      Models: 
-        Order:
-          required:
-            - orderId
-            - customerId
-            - itemLineCount
-            - orderLegalEntityId
-            - createdAtLocal
-            - totalResourceAmount
-            - totalFees
-            - totalTaxAmount
-            - totalPaymentAmount
-            - payments
-            - orderItems
-            - billToCountry
-          type: object
-          properties:
-            orderId:
-              maxLength: 36
-              minLength: 1
-              type: string
-              description: Source System Order Id Value.
-            customerId:
-              type: string
-              format: uuid
-              description: An identifier for a customer
-            itemLineCount:
-              type: integer
-              description: Total Count of Sales Order Items included in this order..
-              format: int
-            orderLegalEntityId:
-              # allOf:
-              #   - $ref: "#/components/schemas/ARLegalEntities"
-              description: >-
-                Legal Entity/Accounting Entity where the Accounts Receivable has to be Booked. List of Legal Entities will be Provided.
-            createdAtLocal:
-              type: string
-              description: >-
-                Dates MUST be represented as ISO 8601 formatted strings. Order Created Date locally with respect to Statutory Reporting Date
-              format: date-time
-            totalResourceAmount:
-              # allOf:
-              #   - $ref: "#/components/schemas/ResourceAmount"
-              description: >-
-                Control Value: The sum of all Resource Amounts.
-            totalFees:
-              # allOf:
-              #   - $ref: "#/components/schemas/Amount"
-              description: >-
-                Control Value:  The Sum of Fees
-            totalTaxAmount:
-              # allOf:
-              #   - $ref: "#/components/schemas/Amount"
-              description: >-
-                Control Value: The sum of all Tax Amounts if there are taxes associated to resources.
-            totalPaymentAmount:
-              # allOf:
-              #   - $ref: "#/components/schemas/Amount"
-              description: >-
-                Control Value: The sum of all payment amounts
-            billToCountry:
-              type: string
-              format: iso-country-code
-              pattern: ^[A-Z][A-Z]$
-              default: US
-              description: Two-letter ISO country code. The customer billing country.
-            orderItems:
-              type: array
-              # items:
-              #   $ref: "#/components/schemas/OrderItem"
-              description: De-bundles sales order item resources
-            payments:
-              type: array
-              # items:
-              #   $ref: "#/components/schemas/Payment"
-              description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
-          additionalProperties: false
-          description: Sales Order Object
+      DefinitionBody:
+        'Fn::Transform':
+          Name: 'AWS::Include'
+          Parameters:
+            Location: s3://ascending-devops/spec/New_Sales_Order_Schema.yaml
+      # Models: 
+      #   Order:
+      #     title: Model
+      #     required:
+      #       - orderId
+      #       - customerId
+      #       - itemLineCount
+      #       - orderLegalEntityId
+      #       - createdAtLocal
+      #       - totalResourceAmount
+      #       - totalFees
+      #       - totalTaxAmount
+      #       - totalPaymentAmount
+      #       - payments
+      #       - orderItems
+      #       - billToCountry
+      #     type: object
+      #     properties:
+      #       orderId:
+      #         maxLength: 36
+      #         minLength: 1
+      #         type: string
+      #         description: Source System Order Id Value.
+      #       customerId:
+      #         type: string
+      #         format: uuid
+      #         description: An identifier for a customer
+      #       itemLineCount:
+      #         type: integer
+      #         description: Total Count of Sales Order Items included in this order..
+      #         format: int
+      #       orderLegalEntityId:
+      #         type: string
+      #         # allOf:
+      #         #   - $ref: "#/components/schemas/ARLegalEntities"
+      #         description: >-
+      #           Legal Entity/Accounting Entity where the Accounts Receivable has to be Booked. List of Legal Entities will be Provided.
+      #       createdAtLocal:
+      #         type: string
+      #         description: >-
+      #           Dates MUST be represented as ISO 8601 formatted strings. Order Created Date locally with respect to Statutory Reporting Date
+      #         format: date-time
+      #       totalResourceAmount:
+      #         type: string
+      #         # allOf:
+      #         #   - $ref: "#/components/schemas/ResourceAmount"
+      #         description: >-
+      #           Control Value: The sum of all Resource Amounts.
+      #       totalFees:
+      #         type: string
+      #         # allOf:
+      #         #   - $ref: "#/components/schemas/Amount"
+      #         description: >-
+      #           Control Value:  The Sum of Fees
+      #       totalTaxAmount:
+      #         type: string
+      #         # allOf:
+      #         #   - $ref: "#/components/schemas/Amount"
+      #         description: >-
+      #           Control Value: The sum of all Tax Amounts if there are taxes associated to resources.
+      #       totalPaymentAmount:
+      #         type: string
+      #         # allOf:
+      #         #   - $ref: "#/components/schemas/Amount"
+      #         description: >-
+      #           Control Value: The sum of all payment amounts
+      #       billToCountry:
+      #         type: string
+      #         format: iso-country-code
+      #         pattern: ^[A-Z][A-Z]$
+      #         default: US
+      #         description: Two-letter ISO country code. The customer billing country.
+      #       orderItems:
+      #         type: array
+      #         items:
+      #           type: object
+      #           properties:
+      #             Id:
+      #               type: string
+      #         # items:
+      #         #   $ref: "#/components/schemas/OrderItem"
+      #         # description: De-bundles sales order item resources
+      #       payments:
+      #         type: array
+      #         items:
+      #           type: string
+      #           # properties:
+      #           #   Id:
+      #           #     type: string
+      #         # items:
+      #         #   $ref: "#/components/schemas/Payment"
+      #         description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
+          # additionalProperties: false
+          # description: Sales Order Object
 
-  RequestValidator:
-    Type: AWS::ApiGateway::RequestValidator
-    Properties:
-      RestApiId: !Ref Api
-      ValidateRequestBody: true
+  # RequestValidator:
+  #   Type: AWS::ApiGateway::RequestValidator
+  #   Properties:
+  #     RestApiId: !Ref Api
+  #     ValidateRequestBody: true

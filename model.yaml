@@ -1,0 +1,166 @@
+openapi: "3.0.1"
+info:
+  title: "godaddy-python"
+  version: "1.0"
+servers:
+- url: "https://n80igrmu92.execute-api.us-east-1.amazonaws.com/{basePath}"
+  variables:
+    basePath:
+      default: "/Prod"
+paths:
+  /v1/sourceSystems/{sourceSystemId}/orders/{orderId}:
+    post:
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:595312265488:function:godaddy-python-HelloWorldFunction-QTPXYS0TFDJB/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+    options:
+      responses:
+        200:
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+            Access-Control-Allow-Methods:
+              schema:
+                type: "string"
+            Access-Control-Allow-Headers:
+              schema:
+                type: "string"
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: "{}\n"
+        requestTemplates:
+          application/json: "{\n  \"statusCode\" : 200\n}\n"
+        passthroughBehavior: "when_no_match"
+  /v1/sourceSystems/{sourceSystemId}/orders:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/order"
+        required: true
+      x-amazon-apigateway-request-validator: "Validate body"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:595312265488:function:godaddy-python-HelloWorldFunction-QTPXYS0TFDJB/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+    options:
+      responses:
+        200:
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+            Access-Control-Allow-Methods:
+              schema:
+                type: "string"
+            Access-Control-Allow-Headers:
+              schema:
+                type: "string"
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: "{}\n"
+        requestTemplates:
+          application/json: "{\n  \"statusCode\" : 200\n}\n"
+        passthroughBehavior: "when_no_match"
+components:
+  schemas:
+    order:
+      title: "Model"
+      required:
+      - "billToCountry"
+      - "createdAtLocal"
+      - "customerId"
+      - "itemLineCount"
+      - "orderId"
+      - "orderItems"
+      - "orderLegalEntityId"
+      - "payments"
+      - "totalFees"
+      - "totalPaymentAmount"
+      - "totalResourceAmount"
+      - "totalTaxAmount"
+      type: "object"
+      properties:
+        totalFees:
+          type: "string"
+          description: "Control Value:  The Sum of Fees"
+        createdAtLocal:
+          type: "string"
+          description: "Dates MUST be represented as ISO 8601 formatted strings. Order\
+            \ Created Date locally with respect to Statutory Reporting Date"
+          format: "date-time"
+        totalResourceAmount:
+          type: "string"
+          description: "Control Value: The sum of all Resource Amounts."
+        orderId:
+          maxLength: 36
+          minLength: 1
+          type: "string"
+          description: "Source System Order Id Value."
+        payments:
+          type: "array"
+          description: "A collection of payments for the sales order (MerchantAccountKey,\
+            \ AmountPaid)"
+          items:
+            type: "string"
+        billToCountry:
+          pattern: "^[A-Z][A-Z]$"
+          type: "string"
+          description: "Two-letter ISO country code. The customer billing country."
+          format: "iso-country-code"
+          default: "US"
+        customerId:
+          type: "string"
+          description: "An identifier for a customer"
+          format: "uuid"
+        totalPaymentAmount:
+          type: "string"
+          description: "Control Value: The sum of all payment amounts"
+        itemLineCount:
+          type: "integer"
+          description: "Total Count of Sales Order Items included in this order.."
+          format: "int"
+        totalTaxAmount:
+          type: "string"
+          description: "Control Value: The sum of all Tax Amounts if there are taxes\
+            \ associated to resources."
+        orderItems:
+          type: "array"
+          items:
+            type: "object"
+            properties:
+              Id:
+                type: "string"
+        orderLegalEntityId:
+          type: "string"
+          description: "Legal Entity/Accounting Entity where the Accounts Receivable\
+            \ has to be Booked. List of Legal Entities will be Provided."
+x-amazon-apigateway-request-validators:
+  Validate body:
+    validateRequestParameters: false
+    validateRequestBody: true

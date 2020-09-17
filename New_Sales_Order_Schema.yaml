@@ -20,83 +20,87 @@ servers:
 paths:
   "/v1/sourceSystems/{sourceSystemId}/orders":
     post:
-      tags:
-        - Order
-      summary: Process multiple sales orders for a source-system
-      parameters:
-        - $ref: "#/components/parameters/sourceSystemId"
       requestBody:
-        description: Array of Sales Orders
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: "#/components/schemas/Order"
-      responses:
-        202:
-          description: A new sales order/orders are received, schema validated and queued
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RequestId"
-        400:
-          $ref: "#/components/responses/400"
-        401:
-          $ref: "#/components/responses/401"
-        403:
-          $ref: "#/components/responses/403"
-        404:
-          $ref: "#/components/responses/404"
-        409:
-          $ref: "#/components/responses/409"
-        422:
-          $ref: "#/components/responses/422"
-        429:
-          $ref: "#/components/responses/429"
-        500:
-          $ref: "#/components/responses/500"
-        503:
-          $ref: "#/components/responses/503"
-  "/v1/sourceSystems/{sourceSystemId}/orders/{orderId}":
-    post:
-      tags:
-        - Order
-      summary: Process a sales order for a source-system
-      parameters:
-        - $ref: "#/components/parameters/sourceSystemId"
-        - $ref: "#/components/parameters/orderId"
-      requestBody:
-        description: Sales Order Object
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/Order"
+        required: true
+      x-amazon-apigateway-request-validator: "Validate body"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:595312265488:function:godaddy-python-HelloWorldFunction-QTPXYS0TFDJB/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+
+    options:
       responses:
-        202:
-          description: A new sales order/orders are received, schema validated and queued
-          content:
-            application/json:
+        200:
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
               schema:
-                $ref: "#/components/schemas/RequestId"
-        400:
-          $ref: "#/components/responses/400"
-        401:
-          $ref: "#/components/responses/401"
-        403:
-          $ref: "#/components/responses/403"
-        404:
-          $ref: "#/components/responses/404"
-        409:
-          $ref: "#/components/responses/409"
-        422:
-          $ref: "#/components/responses/422"
-        429:
-          $ref: "#/components/responses/429"
-        500:
-          $ref: "#/components/responses/500"
-        503:
-          $ref: "#/components/responses/503"
+                type: "string"
+            Access-Control-Allow-Methods:
+              schema:
+                type: "string"
+            Access-Control-Allow-Headers:
+              schema:
+                type: "string"
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: "{}\n"
+        requestTemplates:
+          application/json: "{\n  \"statusCode\" : 200\n}\n"
+        passthroughBehavior: "when_no_match"
+
+  "/v1/sourceSystems/{sourceSystemId}/orders/{orderId}":
+
+    post:
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:595312265488:function:godaddy-python-HelloWorldFunction-QTPXYS0TFDJB/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+
+    options:
+      responses:
+        200:
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+            Access-Control-Allow-Methods:
+              schema:
+                type: "string"
+            Access-Control-Allow-Headers:
+              schema:
+                type: "string"
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: "{}\n"
+        requestTemplates:
+          application/json: "{\n  \"statusCode\" : 200\n}\n"
+        passthroughBehavior: "when_no_match"
 components:
   securitySchemes:
     sso-jwt:
@@ -120,89 +124,6 @@ components:
       description: Source System Order Identifier, should align with Sales Order object
       schema:
         type: string
-  responses:
-    "400":
-      description: Query string and/or request body are malformed
-      x-error-codes:
-        - MALFORMED_INPUT
-      content:
-        "*/*":
-          schema:
-            $ref: "#/components/schemas/Error"
-    "401":
-      description: Authentication info not sent or is invalid
-      x-error-codes:
-        - UNAUTHORIZED
-      content:
-        "*/*":
-          schema:
-            $ref: "#/components/schemas/Error"
-    "403":
-      description: Authenticated user is not allowed access
-      x-error-codes:
-        - ACCESS_DENIED
-      content:
-        "*/*":
-          schema:
-            $ref: "#/components/schemas/Error"
-    "404":
-      description: Resource not found
-      x-error-codes:
-        - NOT_FOUND
-        - NOT_FOUND_SOURCE_SYSTEM
-      content:
-        "*/*":
-          schema:
-            $ref: "#/components/schemas/Error"
-    "409":
-      description: Application-specific server state error
-      x-error-codes:
-        - CONFLICTING_STATUS
-        - ORDER_ALREADY_EXISTS
-      content:
-        "*/*":
-          schema:
-            $ref: "#/components/schemas/Error"
-    "422":
-      description: Application-specific request error
-      x-error-codes:
-        - INVALID_INPUT
-      content:
-        "*/*":
-          schema:
-            $ref: "#/components/schemas/Error"
-    "429":
-      description: Too many requests received within interval
-      x-error-codes:
-        - RATE_LIMITED
-      content:
-        "*/*":
-          schema:
-            $ref: "#/components/schemas/ErrorLimit"
-    "500":
-      description: Internal server error
-      x-error-codes:
-        - INTERNAL_SERVER_ERROR
-      content:
-        "*/*":
-          schema:
-            $ref: "#/components/schemas/Error"
-    "503":
-      description: Service is temporarily unavailable
-      x-error-codes:
-        - SERVICE_UNAVAILABLE
-      content:
-        "*/*":
-          schema:
-            $ref: "#/components/schemas/Error"
-    "504":
-      description: Gateway timeout
-      x-error-codes:
-        - GATEWAY_TIMEOUT
-      content:
-        "*/*":
-          schema:
-            $ref: "#/components/schemas/Error"
   schemas:
     Error:
       x-error-model: true
@@ -943,3 +864,8 @@ components:
           description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
       additionalProperties: false
       description: Sales Order Object
+
+x-amazon-apigateway-request-validators:
+  Validate body:
+    validateRequestParameters: false
+    validateRequestBody: true
