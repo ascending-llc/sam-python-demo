@@ -20,11 +20,17 @@ servers:
 paths:
   "/v1/sourceSystems/{sourceSystemId}/orders":
     post:
+      tags:
+        - Order
+      summary: Process multiple sales orders for a source-system
+      parameters:
+        - $ref: "#/components/parameters/sourceSystemId"
       requestBody:
+        description: Array of Sales Orders
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Order"
+              $ref: "#/components/schemas/Orders"
         required: true
       x-amazon-apigateway-request-validator: "Validate body"
       x-amazon-apigateway-integration:
@@ -798,8 +804,8 @@ components:
         - totalFees
         - totalTaxAmount
         - totalPaymentAmount
-        - payments
-        - orderItems
+        # - payments
+        # - orderItems
         - billToCountry
       type: object
       properties:
@@ -825,7 +831,7 @@ components:
           type: string
           description: >-
             Dates MUST be represented as ISO 8601 formatted strings. Order Created Date locally with respect to Statutory Reporting Date
-          format: date-time
+          # format: date-time
         totalResourceAmount:
           allOf:
             - $ref: "#/components/schemas/ResourceAmount"
@@ -852,18 +858,55 @@ components:
           pattern: ^[A-Z][A-Z]$
           default: US
           description: Two-letter ISO country code. The customer billing country.
-        orderItems:
-          type: array
-          items:
-            $ref: "#/components/schemas/OrderItem"
-          description: De-bundles sales order item resources
-        payments:
-          type: array
-          items:
-            $ref: "#/components/schemas/Payment"
-          description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
+        # orderItems:
+        #   type: array
+        #   items:
+        #     $ref: "#/components/schemas/OrderItem"
+        #   description: De-bundles sales order item resources
+        # payments:
+        #   type: array
+        #   items:
+        #     $ref: "#/components/schemas/Payment"
+        #   description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
       additionalProperties: false
       description: Sales Order Object
+    Orders:
+      required:
+        - requestId
+        - sourceSystemId
+        - Orders  
+      type: object
+      properties:
+        requestId:
+          type: string
+        sourceSystemId:
+          type: string
+        Orders:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderMap"
+    OrderMap:
+      required:
+        - Order
+        # - payments
+        # - orderItems
+      type: object
+      properties:
+        Order:
+          allOf:
+            - $ref: "#/components/schemas/Order"
+
+
+        # payments:
+        #   type: array
+        #   items:
+        #     $ref: "#/components/schemas/Payment"
+        #   description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
+        # orderItems:
+        #   type: array
+        #   items:
+        #     $ref: "#/components/schemas/OrderItem"
+        #   description: De-bundles sales order item resources
 
 x-amazon-apigateway-request-validators:
   Validate body:
