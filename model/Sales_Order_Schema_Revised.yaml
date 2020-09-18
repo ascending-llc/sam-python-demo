@@ -30,18 +30,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Orders"
+              type: array
+              items:
+                $ref: "#/components/schemas/Order"
         required: true
       x-amazon-apigateway-request-validator: "Validate body"
       x-amazon-apigateway-integration:
         type: "aws_proxy"
-        uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:595312265488:function:godaddy-python-HelloWorldFunction-QTPXYS0TFDJB/invocations"
+        uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HelloWorldFunction.Arn}/invocations
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
 
     options:
       responses:
-        200:
+        "200":
           description: "200 response"
           headers:
             Access-Control-Allow-Origin:
@@ -70,17 +72,30 @@ paths:
         passthroughBehavior: "when_no_match"
 
   "/v1/sourceSystems/{sourceSystemId}/orders/{orderId}":
-
     post:
+      tags:
+        - Order
+      summary: Process a sales order for a source-system
+      parameters:
+        - $ref: "#/components/parameters/sourceSystemId"
+        - $ref: "#/components/parameters/orderId"
+      requestBody:
+        description: Sales Order Object
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Order"
+        required: true
+      x-amazon-apigateway-request-validator: "Validate body"
       x-amazon-apigateway-integration:
         type: "aws_proxy"
-        uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:595312265488:function:godaddy-python-HelloWorldFunction-QTPXYS0TFDJB/invocations"
+        uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HelloWorldFunction.Arn}/invocations
         passthroughBehavior: "when_no_match"
-        httpMethod: "POST"
+        httpMethod: "POST"        
 
     options:
       responses:
-        200:
+        "200":
           description: "200 response"
           headers:
             Access-Control-Allow-Origin:
@@ -107,6 +122,7 @@ paths:
         requestTemplates:
           application/json: "{\n  \"statusCode\" : 200\n}\n"
         passthroughBehavior: "when_no_match"
+
 components:
   securitySchemes:
     sso-jwt:
@@ -130,6 +146,7 @@ components:
       description: Source System Order Identifier, should align with Sales Order object
       schema:
         type: string
+ 
   schemas:
     Error:
       x-error-model: true
@@ -647,13 +664,16 @@ components:
       type: object
       properties:
         amountPaid:
-          $ref: "#/components/schemas/Amount"
+          allOf:
+            - $ref: "#/components/schemas/Amount"
           description: "price paid for product, not including taxes/fees"
         cost:
-          $ref: "#/components/schemas/Amount"
+          allOf:
+            - $ref: "#/components/schemas/Amount"
           description: "The direct cost for the product"
         listPrice:
-          $ref: "#/components/schemas/Amount"
+          allOf:
+            - $ref: "#/components/schemas/Amount"
           description: "List Price for the product"
       description: Resource Amount Object
     Fee:
@@ -813,7 +833,7 @@ components:
           description: Source System Order Id Value.
         customerId:
           type: string
-          # format: uuid
+          format: uuid
           description: An identifier for a customer
         itemLineCount:
           type: integer
@@ -828,21 +848,25 @@ components:
           type: string
           description: >-
             Dates MUST be represented as ISO 8601 formatted strings. Order Created Date locally with respect to Statutory Reporting Date
-          # format: date-time
+          format: date-time
         totalResourceAmount:
-          $ref: "#/components/schemas/ResourceAmount"
+          allOf:
+            - $ref: "#/components/schemas/ResourceAmount"
           description: >-
             Control Value: The sum of all Resource Amounts.
         totalFees:
-          $ref: "#/components/schemas/Amount"
+          allOf:
+            - $ref: "#/components/schemas/Amount"
           description: >-
             Control Value:  The Sum of Fees
         totalTaxAmount:
-          $ref: "#/components/schemas/Amount"
+          allOf:
+            - $ref: "#/components/schemas/Amount"
           description: >-
             Control Value: The sum of all Tax Amounts if there are taxes associated to resources.
         totalPaymentAmount:
-          $ref: "#/components/schemas/Amount"
+          allOf:
+            - $ref: "#/components/schemas/Amount"
           description: >-
             Control Value: The sum of all payment amounts
         billToCountry:
@@ -863,42 +887,6 @@ components:
         #   description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
       additionalProperties: false
       description: Sales Order Object
-    Orders:
-      required:
-        - requestId
-        - sourceSystemId
-        - Orders  
-      type: object
-      properties:
-        requestId:
-          type: string
-        sourceSystemId:
-          type: string
-        Orders:
-          type: array
-          items:
-            $ref: "#/components/schemas/OrderMap"
-    OrderMap:
-      required:
-        - Order
-        # - payments
-        # - orderItems
-      type: object
-      properties:
-        Order:
-          $ref: "#/components/schemas/Order"
-
-
-        # payments:
-        #   type: array
-        #   items:
-        #     $ref: "#/components/schemas/Payment"
-        #   description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
-        # orderItems:
-        #   type: array
-        #   items:
-        #     $ref: "#/components/schemas/OrderItem"
-        #   description: De-bundles sales order item resources
 
 x-amazon-apigateway-request-validators:
   Validate body:

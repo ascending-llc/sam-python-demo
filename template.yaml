@@ -10,11 +10,11 @@ Globals:
   Function:
     Timeout: 3
 
-  # Api:
-  #   Cors:
-  #     AllowMethods: "'*'"
-  #     AllowHeaders: "'*'"
-  #     AllowOrigin: "'*'"
+  Api:
+    Cors:
+      AllowMethods: "'*'"
+      AllowHeaders: "'*'"
+      AllowOrigin: "'*'"
 
 Resources:
   HelloWorldFunction:
@@ -31,15 +31,12 @@ Resources:
             Path: /v1/sourceSystems/{sourceSystemId}/orders
             Method: post
             RestApiId: !Ref Api
-            # RequestModel: 
-            #   Model: Order
-            #   Required: true
-      #   ApiEvent2:
-      #     Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-      #     Properties:
-      #       Path: /v1/sourceSystems/{sourceSystemId}/orders/{orderId}
-      #       Method: post
-      #       RestApiId: !Ref Api
+        ApiEvent2:
+          Type: Api 
+          Properties:
+            Path: /v1/sourceSystems/{sourceSystemId}/orders/{orderId}
+            Method: post
+            RestApiId: !Ref Api
 
   HelloWorldFunctionIamRole:
     Type: AWS::IAM::Role
@@ -74,7 +71,7 @@ Resources:
       DefinitionBody:
         openapi: 3.0.1
         info:
-          title: Revenue API - Sales - 2
+          title: Revenue API - Sales
           description: "Standard endpoints to support the submission of Sales Orders from GoDaddy commerce platforms for recognition of Revenue. This overall API is named the Revenue API.  "
           version: v1
           contact:
@@ -104,7 +101,9 @@ Resources:
                 content:
                   application/json:
                     schema:
-                      $ref: "#/components/schemas/Orders"
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/Order"
                 required: true
               x-amazon-apigateway-request-validator: "Validate body"
               x-amazon-apigateway-integration:
@@ -144,13 +143,26 @@ Resources:
                 passthroughBehavior: "when_no_match"
 
           "/v1/sourceSystems/{sourceSystemId}/orders/{orderId}":
-
             post:
+              tags:
+                - Order
+              summary: Process a sales order for a source-system
+              parameters:
+                - $ref: "#/components/parameters/sourceSystemId"
+                - $ref: "#/components/parameters/orderId"
+              requestBody:
+                description: Sales Order Object
+                content:
+                  application/json:
+                    schema:
+                      $ref: "#/components/schemas/Order"
+                required: true
+              x-amazon-apigateway-request-validator: "Validate body"
               x-amazon-apigateway-integration:
                 type: "aws_proxy"
-                uri: !Sub arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/${HelloWorldFunction.Arn}/invocations
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HelloWorldFunction.Arn}/invocations
                 passthroughBehavior: "when_no_match"
-                httpMethod: "POST"
+                httpMethod: "POST"        
 
             options:
               responses:
@@ -181,6 +193,7 @@ Resources:
                 requestTemplates:
                   application/json: "{\n  \"statusCode\" : 200\n}\n"
                 passthroughBehavior: "when_no_match"
+
         components:
           securitySchemes:
             sso-jwt:
@@ -204,6 +217,7 @@ Resources:
               description: Source System Order Identifier, should align with Sales Order object
               schema:
                 type: string
+         
           schemas:
             Error:
               x-error-model: true
@@ -721,13 +735,16 @@ Resources:
               type: object
               properties:
                 amountPaid:
-                  $ref: "#/components/schemas/Amount"
+                  allOf:
+                    - $ref: "#/components/schemas/Amount"
                   description: "price paid for product, not including taxes/fees"
                 cost:
-                  $ref: "#/components/schemas/Amount"
+                  allOf:
+                    - $ref: "#/components/schemas/Amount"
                   description: "The direct cost for the product"
                 listPrice:
-                  $ref: "#/components/schemas/Amount"
+                  allOf:
+                    - $ref: "#/components/schemas/Amount"
                   description: "List Price for the product"
               description: Resource Amount Object
             Fee:
@@ -875,8 +892,8 @@ Resources:
                 - totalFees
                 - totalTaxAmount
                 - totalPaymentAmount
-                # - payments
-                # - orderItems
+                - payments
+                - orderItems
                 - billToCountry
               type: object
               properties:
@@ -887,7 +904,7 @@ Resources:
                   description: Source System Order Id Value.
                 customerId:
                   type: string
-                  # format: uuid
+                  format: uuid
                   description: An identifier for a customer
                 itemLineCount:
                   type: integer
@@ -902,21 +919,25 @@ Resources:
                   type: string
                   description: >-
                     Dates MUST be represented as ISO 8601 formatted strings. Order Created Date locally with respect to Statutory Reporting Date
-                  # format: date-time
+                  format: date-time
                 totalResourceAmount:
-                  $ref: "#/components/schemas/ResourceAmount"
+                  allOf:
+                    - $ref: "#/components/schemas/ResourceAmount"
                   description: >-
                     Control Value: The sum of all Resource Amounts.
                 totalFees:
-                  $ref: "#/components/schemas/Amount"
+                  allOf:
+                    - $ref: "#/components/schemas/Amount"
                   description: >-
                     Control Value:  The Sum of Fees
                 totalTaxAmount:
-                  $ref: "#/components/schemas/Amount"
+                  allOf:
+                    - $ref: "#/components/schemas/Amount"
                   description: >-
                     Control Value: The sum of all Tax Amounts if there are taxes associated to resources.
                 totalPaymentAmount:
-                  $ref: "#/components/schemas/Amount"
+                  allOf:
+                    - $ref: "#/components/schemas/Amount"
                   description: >-
                     Control Value: The sum of all payment amounts
                 billToCountry:
@@ -925,162 +946,20 @@ Resources:
                   pattern: ^[A-Z][A-Z]$
                   default: US
                   description: Two-letter ISO country code. The customer billing country.
-                # orderItems:
-                #   type: array
-                #   items:
-                #     $ref: "#/components/schemas/OrderItem"
-                #   description: De-bundles sales order item resources
-                # payments:
-                #   type: array
-                #   items:
-                #     $ref: "#/components/schemas/Payment"
-                #   description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
-              additionalProperties: false
-              description: Sales Order Object
-            Orders:
-              required:
-                - requestId
-                - sourceSystemId
-                - Orders  
-              type: object
-              properties:
-                requestId:
-                  type: string
-                sourceSystemId:
-                  type: string
-                Orders:
+                orderItems:
                   type: array
                   items:
-                    $ref: "#/components/schemas/OrderMap"
-            OrderMap:
-              required:
-                - Order
-                # - payments
-                # - orderItems
-              type: object
-              properties:
-                Order:
-                  $ref: "#/components/schemas/Order"
-
-
-        # payments:
-        #   type: array
-        #   items:
-        #     $ref: "#/components/schemas/Payment"
-        #   description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
-        # orderItems:
-        #   type: array
-        #   items:
-        #     $ref: "#/components/schemas/OrderItem"
-        #   description: De-bundles sales order item resources
+                    $ref: "#/components/schemas/OrderItem"
+                  description: De-bundles sales order item resources
+                payments:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Payment"
+                  description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
+              additionalProperties: false
+              description: Sales Order Object
 
         x-amazon-apigateway-request-validators:
           Validate body:
             validateRequestParameters: false
             validateRequestBody: true
-
-
-        # 'Fn::Transform':
-        #   Name: 'AWS::Include'
-        #   Parameters:
-        #     Location: s3://ascending-devops/spec/Sales_Order_Schema_Revised.yaml
-      # Models: 
-      #   Order:
-      #     title: Model
-      #     required:
-      #       - orderId
-      #       - customerId
-      #       - itemLineCount
-      #       - orderLegalEntityId
-      #       - createdAtLocal
-      #       - totalResourceAmount
-      #       - totalFees
-      #       - totalTaxAmount
-      #       - totalPaymentAmount
-      #       - payments
-      #       - orderItems
-      #       - billToCountry
-      #     type: object
-      #     properties:
-      #       orderId:
-      #         maxLength: 36
-      #         minLength: 1
-      #         type: string
-      #         description: Source System Order Id Value.
-      #       customerId:
-      #         type: string
-      #         format: uuid
-      #         description: An identifier for a customer
-      #       itemLineCount:
-      #         type: integer
-      #         description: Total Count of Sales Order Items included in this order..
-      #         format: int
-      #       orderLegalEntityId:
-      #         type: string
-      #         # allOf:
-      #         #   - $ref: "#/components/schemas/ARLegalEntities"
-      #         description: >-
-      #           Legal Entity/Accounting Entity where the Accounts Receivable has to be Booked. List of Legal Entities will be Provided.
-      #       createdAtLocal:
-      #         type: string
-      #         description: >-
-      #           Dates MUST be represented as ISO 8601 formatted strings. Order Created Date locally with respect to Statutory Reporting Date
-      #         format: date-time
-      #       totalResourceAmount:
-      #         type: string
-      #         # allOf:
-      #         #   - $ref: "#/components/schemas/ResourceAmount"
-      #         description: >-
-      #           Control Value: The sum of all Resource Amounts.
-      #       totalFees:
-      #         type: string
-      #         # allOf:
-      #         #   - $ref: "#/components/schemas/Amount"
-      #         description: >-
-      #           Control Value:  The Sum of Fees
-      #       totalTaxAmount:
-      #         type: string
-      #         # allOf:
-      #         #   - $ref: "#/components/schemas/Amount"
-      #         description: >-
-      #           Control Value: The sum of all Tax Amounts if there are taxes associated to resources.
-      #       totalPaymentAmount:
-      #         type: string
-      #         # allOf:
-      #         #   - $ref: "#/components/schemas/Amount"
-      #         description: >-
-      #           Control Value: The sum of all payment amounts
-      #       billToCountry:
-      #         type: string
-      #         format: iso-country-code
-      #         pattern: ^[A-Z][A-Z]$
-      #         default: US
-      #         description: Two-letter ISO country code. The customer billing country.
-      #       orderItems:
-      #         type: array
-      #         items:
-      #           type: object
-      #           properties:
-      #             Id:
-      #               type: string
-      #         # items:
-      #         #   $ref: "#/components/schemas/OrderItem"
-      #         # description: De-bundles sales order item resources
-      #       payments:
-      #         type: array
-      #         items:
-      #           type: string
-      #           # properties:
-      #           #   Id:
-      #           #     type: string
-      #         # items:
-      #         #   $ref: "#/components/schemas/Payment"
-      #         description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
-          # additionalProperties: false
-          # description: Sales Order Object
-
-  # RequestValidator:
-  #   Type: AWS::ApiGateway::RequestValidator
-  #   Properties:
-  #     RestApiId: !Ref Api
-  #     ValidateRequestBody: true
