@@ -23,6 +23,7 @@ Resources:
       CodeUri: hello_world/
       Handler: app.lambda_handler
       Runtime: python3.8
+      Role: !GetAtt HelloWorldFunctionIamRole.Arn
       Events:
         ApiEvent:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
@@ -71,10 +72,918 @@ Resources:
     Properties:
       StageName: Prod
       DefinitionBody:
-        'Fn::Transform':
-          Name: 'AWS::Include'
-          Parameters:
-            Location: s3://ascending-devops/spec/Sales_Order_Schema_Revised.yaml
+        openapi: 3.0.1
+        info:
+          title: Revenue API - Sales - 2
+          description: "Standard endpoints to support the submission of Sales Orders from GoDaddy commerce platforms for recognition of Revenue. This overall API is named the Revenue API.  "
+          version: v1
+          contact:
+            name: FinTech Eng
+            x-slack-channel: "#fintech-eng-public"
+            x-source-code: https://github.secureserver.net/RevenueRecognition/AWS.WebAPI.RevenueAPI
+        servers:
+          - url: "https://revenue.api.{environment}godaddy.com"
+            variables:
+              environment:
+                default: "dev-"
+                enum:
+                  - "dev-"
+                  - "test-"
+                  - "ote-"
+                  - ""
+        paths:
+          "/v1/sourceSystems/{sourceSystemId}/orders":
+            post:
+              tags:
+                - Order
+              summary: Process multiple sales orders for a source-system
+              parameters:
+                - $ref: "#/components/parameters/sourceSystemId"
+              requestBody:
+                description: Array of Sales Orders
+                content:
+                  application/json:
+                    schema:
+                      $ref: "#/components/schemas/Orders"
+                required: true
+              x-amazon-apigateway-request-validator: "Validate body"
+              x-amazon-apigateway-integration:
+                type: "aws_proxy"
+                uri: !Sub arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/${HelloWorldFunction.Arn}/invocations
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+
+            options:
+              responses:
+                "200":
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      schema:
+                        type: "string"
+                    Access-Control-Allow-Methods:
+                      schema:
+                        type: "string"
+                    Access-Control-Allow-Headers:
+                      schema:
+                        type: "string"
+                  content: {}
+              x-amazon-apigateway-integration:
+                type: "mock"
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'*'"
+                      method.response.header.Access-Control-Allow-Headers: "'*'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}\n"
+                requestTemplates:
+                  application/json: "{\n  \"statusCode\" : 200\n}\n"
+                passthroughBehavior: "when_no_match"
+
+          "/v1/sourceSystems/{sourceSystemId}/orders/{orderId}":
+
+            post:
+              x-amazon-apigateway-integration:
+                type: "aws_proxy"
+                uri: !Sub arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/${HelloWorldFunction.Arn}/invocations
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+
+            options:
+              responses:
+                "200":
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      schema:
+                        type: "string"
+                    Access-Control-Allow-Methods:
+                      schema:
+                        type: "string"
+                    Access-Control-Allow-Headers:
+                      schema:
+                        type: "string"
+                  content: {}
+              x-amazon-apigateway-integration:
+                type: "mock"
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'*'"
+                      method.response.header.Access-Control-Allow-Headers: "'*'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}\n"
+                requestTemplates:
+                  application/json: "{\n  \"statusCode\" : 200\n}\n"
+                passthroughBehavior: "when_no_match"
+        components:
+          securitySchemes:
+            sso-jwt:
+              type: apiKey
+              description: "Standard GoDaddy SSO header authorization: <code>sso-jwt (token)</code>"
+              name: Authorization
+              in: header
+          parameters:
+            sourceSystemId:
+              name: sourceSystemId
+              required: true
+              in: path
+              description: Source system identifier (UUID)
+              schema:
+                type: string
+                format: uuid
+            orderId:
+              name: orderId
+              required: true
+              in: path
+              description: Source System Order Identifier, should align with Sales Order object
+              schema:
+                type: string
+          schemas:
+            Error:
+              x-error-model: true
+              type: object
+              properties:
+                code:
+                  type: string
+                  format: error-code
+                  pattern: ^[A-Z_][A-Z0-9_]*$
+                  description: Short identifier for the error, suitable for indicating the specific error within client code
+                message:
+                  type: string
+                  description: Human-readable, English description of the error
+                fields:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ErrorField"
+                  minItems: 1
+                  description: List of the specific fields, and the errors found with their contents
+                stack:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  description: "Stack trace indicating where the error occurred.<br/>NOTE: This attribute <strong>MAY</strong> be included for Development and Test environments. However, it <stron>MUST NOT</strong> be exposed from OTE nor Production systems"
+              required:
+                - code
+            ErrorLimit:
+              x-error-model: true
+              additionalProperties: false
+              allOf:
+                - type: object
+                  properties:
+                    retryAfterSec:
+                      type: integer
+                      format: integer-positive
+                      pattern: ^[0-9]+$
+                      description: Number of seconds to wait before attempting a similar request
+                  required:
+                    - retryAfterSec
+                - $ref: "#/components/schemas/Error"
+            ErrorField:
+              type: object
+              properties:
+                path:
+                  type: string
+                  format: json-path
+                  pattern: ^[a-z_]([a-zA-Z0-9_.]*)*$
+                  description: "1) JSONPath referring to the field within the data containing an error<br/>or<br/>2) JSONPath referring to an object containing an error"
+                pathRelated:
+                  type: string
+                  format: json-path
+                  pattern: ^[a-z_]([a-zA-Z0-9_.]*)*$
+                  description: "JSONPath referring to the field on the object referenced by `path` containing an error"
+                code:
+                  type: string
+                  format: error-code
+                  pattern: ^[A-Z_][A-Z0-9_]*$
+                  description: Short identifier for the error, suitable for indicating the specific error within client code
+                message:
+                  type: string
+                  description: Human-readable, English description of the error
+              required:
+                - path
+                - code
+            ErrorWithId:
+              x-error-model: true
+              allOf:
+                - type: object
+                  properties:
+                    errorId:
+                      type: string
+                      description: Unique identifier for this specific error instance
+                  required:
+                    - errorId
+                - $ref: "#/components/schemas/Error"
+            CustomerSegment:
+              description: Customer segment information Domain Buyers Club, or Employee or other
+              type: string
+              enum:
+                - DOMAIN_BUYERS_CLUB
+                - EMPLOYEE
+                - OTHER
+            MerchantAccountKeys:
+              description: List of Merchant Account keys.
+              type: string
+              enum:
+                - CCP_ADYEN_GODADDY_USD
+                - CCP_ADYEN_UK_GODADDY_GBP
+                - CCP_AMEX_CANADA_GODADDY_CAD
+                - CCP_AMEX_GODADDY_USD
+                - CCP_AMEX_UK_GODADDY_GBP
+                - CCP_ASTROPAY_GODADDY_USD
+                - CCP_BARCLAYS_GODADDY_USD
+                - CCP_CCAVENUE_GODADDY_USD
+                - CCP_CERTEGY_GODADDY_USD
+                - CCP_CHASE_CANADA_GODADDY_CAD
+                - CCP_CHASE_PAYMENTECH_GODADDY_USD
+                - CCP_CHASE_PAYMENTECH_UK_GODADDY_GBP
+                - CCP_DIGITAL_RIVER_GODADDY_USD
+                - CCP_DIGITAL_RIVER_UK_GODADDY_GBP
+                - CCP_DISCOVER_GODADDY_USD
+                - CCP_LITLE_CANADA_GODADDY_CAD
+                - CCP_LITLE_EU_GODADDY_EUR
+                - CCP_LITLE_VISA_MASTERCARD_GODADDY_USD
+                - CCP_MONEYBOOKER_SKRILL_GODADDY_USD
+                - CCP_MONEYBOOKER_CANADA_GODADDY_CAD
+                - CCP_MONEYBOOKER_UK_GODADDY_GBP
+                - CCP_PAYPAL_CANADA_GODADDY_CAD
+                - CCP_PAYPAL_EUROPE_GODADDY_EUR
+                - CCP_PAYPAL_GODADDY_GBP
+                - CCP_PAYPAL_GODADDY_USD
+                - LINE_OF_CREDIT
+                - GAG
+                - GIFT_CARD
+                - CCP_FIRST_DATA
+                - CREDITLINE
+                - INSTORECREDIT
+                - ZERO
+            ARLegalEntities:
+              description: Legal Entity/Accounting Entity where the Accounts Receivable has to be Booked.
+              type: string
+              enum:
+                - CMP001
+                - CMP014
+                - CMP025
+                - CMP040
+                - CMP044
+                - CMP045
+                - CMP046
+                - CMP047
+                - CMP052
+                - CMP062
+                - CMP064
+                - CMP078
+                - CMP079
+                - CMP080
+                - CMP086
+                - CMP088
+                - CMP089
+                - CMP093
+                - CMP094
+                - CMP096
+                - CMP098
+                - CMP099
+            LegalEntities:
+              description: Legal Entity/Accounting Entity where the revenue has to be Booked.
+              type: string
+              enum:
+                - CMP001
+                - CMP002
+                - CMP003
+                - CMP004
+                - CMP005
+                - CMP006
+                - CMP007
+                - CMP008
+                - CMP009
+                - CMP010
+                - CMP011
+                - CMP012
+                - CMP013
+                - CMP014
+                - CMP015
+                - CMP016
+                - CMP017
+                - CMP018
+                - CMP019
+                - CMP020
+                - CMP021
+                - CMP022
+                - CMP023
+                - CMP024
+                - CMP025
+                - CMP026
+                - CMP027
+                - CMP028
+                - CMP029
+                - CMP030
+                - CMP031
+                - CMP032
+                - CMP033
+                - CMP034
+                - CMP035
+                - CMP036
+                - CMP037
+                - CMP038
+                - CMP039
+                - CMP040
+                - CMP041
+                - CMP042
+                - CMP043
+                - CMP044
+                - CMP045
+                - CMP046
+                - CMP047
+                - CMP048
+                - CMP049
+                - CMP050
+                - CMP051
+                - CMP052
+                - CMP053
+                - CMP054
+                - CMP055
+                - CMP056
+                - CMP057
+                - CMP058
+                - CMP059
+                - CMP060
+                - CMP061
+                - CMP062
+                - CMP063
+                - CMP064
+                - CMP065
+                - CMP066
+                - CMP067
+                - CMP068
+                - CMP069
+                - CMP070
+                - CMP071
+                - CMP072
+                - CMP073
+                - CMP074
+                - CMP075
+                - CMP076
+                - CMP077
+                - CMP078
+                - CMP079
+                - CMP080
+                - CMP081
+                - CMP082
+                - CMP083
+                - CMP084
+                - CMP085
+                - CMP086
+                - CMP087
+                - CMP088
+                - CMP089
+                - CMP090
+                - CMP091
+                - CMP092
+                - CMP093
+                - CMP094
+                - CMP095
+                - CMP096
+                - CMP097
+                - CMP098
+                - CMP099
+            DomainProduct:
+              required:
+                - sponsor
+                - tld
+              type: object
+              properties:
+                tld:
+                  maxLength: 50
+                  type: string
+                  description: "TLD Name Ex:. COM, GURU, INFO, etc"
+                sponsor:
+                  type: string
+                  enum:
+                    - AFILIAS
+                    - AFILIAS_CCTLD
+                    - AFNIC
+                    - ARI_REGISTRY_SERVICES
+                    - ARUBA_PEC_SPA
+                    - ASIA
+                    - AU
+                    - BAYERN_CONNECT_GMBH
+                    - CENTRAL_NIC
+                    - CIRA_CA
+                    - CNNIC
+                    - CO_INTERNET_SAS
+                    - DERHOMES_LLC
+                    - DOMINION_REGISTRY
+                    - DONUTS
+                    - DOT_AMSTERDAM
+                    - DOT_APP
+                    - DOT_BERLIN
+                    - DOT_BR
+                    - DOT_KIWI
+                    - DOTGLOBAL
+                    - DOTLONDON
+                    - DOTLUXURY
+                    - DOTVEGAS
+                    - EU_REGISTRY
+                    - FAMOUS_FOUR_MEDIA_FFM
+                    - FUNDACIO_PUNTCAT
+                    - GDI_WS_DOMAIN_REG_FEES
+                    - GLOBAL_REGISTRY_SERVICES_LTD
+                    - GMO_REGISTRY
+                    - GOOGLE_REGISTRY
+                    - HEXONET_CCTLD
+                    - I_REGISTRY
+                    - ICM_REGISTRY_LLC
+                    - IN
+                    - INTERCAP_HOLDINGS
+                    - INTERNETX
+                    - JAPAN_REGISTRY_SERVICES
+                    - KEY_SYSTEMS
+                    - KISA_DOTKR
+                    - KKWT_WORD_PRESS
+                    - ME
+                    - MINDS_AND_MACHINES
+                    - MINDS_AND_MACHINES_GMBH
+                    - MOBI
+                    - MOTION_PICTURE_DOMAIN_REGISTRY_PTY_LTD
+                    - MX
+                    - NEUSTAR
+                    - NIC_AT
+                    - NOMINET_UK
+                    - ONE_REGISTRY
+                    - PIR
+                    - PLAN_BEE
+                    - POINT_QUEBEC
+                    - SIDN_NL
+                    - STATE_OF_NEW_SOUTH_WALES
+                    - SWITCH_DOTCH
+                    - UNIREGISTRY
+                    - VERISIGN
+                    - VERISIGN_CCTLD
+                    - WHATBOX
+                  description: >-
+                    "Who the Registrar is Ex:. Verisign, Donuts, etc"
+              additionalProperties: false
+              description: Domain Product model
+            Product:
+              required:
+                - productSKU
+                - productGroup
+                - productCategory
+                - productLine
+                - productRuleType
+                - supplier
+              type: object
+              properties:
+                productSKU:
+                  maxLength: 36
+                  type: string
+                  description: >-
+                    Unique product identifier from source system
+                productGroup:
+                  description: >-
+                    Product Group. Ex:. Domain, Hosting, Business Applications, Presence
+                    and Commerce,  etc
+                  type: string
+                  enum:
+                    - BUSINESS_APPLICATIONS_AND_OTHER
+                    - DOMAINS
+                    - HOSTING
+                    - NOT_APPLICABLE
+                    - PRESENCE_AND_COMMERCE
+                productCategory:
+                  description: >-
+                    Product Category. Ex:. Domain Registration, Domain Renewal, Hosting,
+                    Workspace,  etc
+                  type: string
+                  enum:
+                    - AFTERMARKET
+                    - BUSINESS_TOOLS
+                    - COMMERCE
+                    - DOMAIN_ADD_ONS
+                    - DOMAIN_REGISTRATION
+                    - ENGAGE_CUSTOMERS
+                    - IT_SERVICES
+                    - MISCELLANEOUS_FEES_AND_OTHER
+                    - NOT_APPLICABLE
+                    - OTHER_HOSTING
+                    - PRESENCE
+                    - SECURITY
+                    - SITE_BUILDING
+                    - TELEPHONY
+                    - WEB_HOSTING
+                    - WORKSPACE
+                productLine:
+                  description: >-
+                    Product Line. Ex:. Domain Services, Domain Name Transfer, Certified Domains, Appraisal, Shared Hosting, Word press, Dedicated Hosting, Email, Premium SEV etc
+                  type: string
+                  enum:
+                    - APPRAISAL
+                    - BUSINESS_REGISTRATIONS
+                    - CASHPARKING
+                    - CERTIFIED_DOMAINS
+                    - CHARITY
+                    - CLOUD_SERVERS
+                    - CNP_HOSTING
+                    - CONSOLIDATION
+                    - DEDICATED_HOSTING
+                    - DEDICATED_IP
+                    - DIFY_SOCIAL
+                    - DOMAIN_ALERT
+                    - DOMAIN_BUY_SERVICES
+                    - DOMAIN_BUYERS_CLUB
+                    - DOMAIN_MARKETPLACE
+                    - DOMAIN_NAME_AUCTION
+                    - DOMAIN_NAME_PREMIUM
+                    - DOMAIN_NAME_REGISTRATION
+                    - DOMAIN_NAME_TRANSFER
+                    - DOMAIN_OWNERSHIP_PROTECTION
+                    - DOMAIN_SERVICES
+                    - DOMAINS_BY_PROXY
+                    - EMAIL
+                    - EXPRESS_EMAIL_MARKETING
+                    - FAX_THRU_EMAIL
+                    - GET_FOUND
+                    - GIFT_CARDS
+                    - GRID
+                    - INSTANT_PAGE
+                    - MANAGED_HOSTING
+                    - MISCELLANEOUS_FEES_AND_OTHER
+                    - MS_OFFICE_365
+                    - ONLINE_BOOKKEEPING
+                    - ONLINE_CALENDAR
+                    - ONLINE_STORAGE
+                    - OPEN_XCHANGE
+                    - PAID_IT
+                    - PAID_SERVICES
+                    - PAID_SUPPORT
+                    - PREMIUM_DNS
+                    - PROFESSIONAL_WEB_SERVICES
+                    - QUICK_SHOPPING_CART
+                    - REDEMPTION
+                    - RESELLER
+                    - SEARCH_ENGINE_VISIBILITY
+                    - SHARED_HOSTING
+                    - SMART_LINE
+                    - SSL
+                    - VIRTUAL_HOSTING
+                    - WEBSITE_BUILDER
+                    - WEBSITE_PROTECTION
+                    - WORD_PRESS
+                    - WORD_PRESS_MANAGED_PLANS
+                productRuleType:
+                  description: >-
+                    Business rule identifier Ex:.Default, Type1, Type2 etc.
+                  type: string
+                  enum:
+                    - DEFAULT
+                    - TYPE01
+                    - TYPE02
+                    - TYPE03
+                    - TYPE04
+                    - TYPE05
+                    - TYPE06
+                    - TYPE07
+                    - TYPE08
+                    - TYPE09
+                supplier:
+                  type: string
+                  enum:
+                    - GODADDY
+                    - AMAZON
+                  description: >-
+                    Whose Credentials were used for fulfilling the Product Ex. GoDaddy, Amazon, etc
+                domainProduct:
+                  $ref: "#/components/schemas/DomainProduct"
+              additionalProperties: false
+              description: Product Object. When onboarding source system we will map all the product sku's and provide the above attributes for each sku.
+            Amount:
+              required:
+                - currencyId
+                - amount
+              type: object
+              properties:
+                amount:
+                  type: integer
+                  format: currency-micro-unit
+                  pattern: ^-?[0-9]+$
+                  description: "Stored as: `(amount)*(10 ^ 6)`. Details at
+                    https://github.secureserver.net/CTO/guidelines/blob/master/api-design/README.md#currency"
+                currencyId:
+                  type: string
+                  format: iso-currency-code
+                  pattern: ^[A-Z][A-Z][A-Z]$
+                  default: USD
+                  description: "CurrencyId in which pricing information should be accepted and/or returned"
+              additionalProperties: false
+            PeriodUnit:
+              type: string
+              enum:
+                - DAYS
+                - MONTHS
+                - YEARS
+              description: >-
+                Registration Period type specifies if registration period is days or months or years.
+            Period:
+              required:
+                - unit
+                - value
+              type: object
+              properties:
+                unit:
+                  $ref: "#/components/schemas/PeriodUnit"
+                value:
+                  type: integer
+                  minimum: 1
+                  description: Service period value for product purchased.
+                  format: int
+              additionalProperties: false
+              description: Period for a resource
+            RequestId:
+              required:
+                - requestId
+              type: object
+              properties:
+                requestId:
+                  type: string
+                  format: uuid
+                  description: Request Id can be used to find the status of each sales order or an array of sales orders.
+            ResourceAmount:
+              required:
+                - amountPaid
+                - cost
+                - listPrice
+              type: object
+              properties:
+                amountPaid:
+                  $ref: "#/components/schemas/Amount"
+                  description: "price paid for product, not including taxes/fees"
+                cost:
+                  $ref: "#/components/schemas/Amount"
+                  description: "The direct cost for the product"
+                listPrice:
+                  $ref: "#/components/schemas/Amount"
+                  description: "List Price for the product"
+              description: Resource Amount Object
+            Fee:
+              required:
+                - amountType
+                - value
+              type: object
+              properties:
+                amountType:
+                  type: string
+                  enum:
+                    - ICANN
+                    - TELEPHONY
+                  description: >-
+                    Name of the Amount that is not part of the provisioned resource
+                value:
+                  $ref: "#/components/schemas/Amount"
+              description: >-
+                Any Amounts that are not specified in the Base provisioned
+                resource Object
+            Subscription:
+              required:
+                - endsAtLocal
+                - startsAtLocal
+              type: object
+              properties:
+                startsAtLocal:
+                  type: string
+                  description: >-
+                    When Subscription Starts for the provisioned resource. Date must be
+                    in statutory reporting date
+                  format: date
+                endsAtLocal:
+                  type: string
+                  description: >-
+                    When Subscription Ends for the provisioned resource. Date must be in
+                    statutory reporting date
+                  format: date
+              additionalProperties: false
+              description: The subscription start and end dates in statutory reporting date
+            Tax:
+              required:
+                - amount
+                - system
+                - type
+              type: object
+              properties:
+                amount:
+                  $ref: "#/components/schemas/Amount"
+                type:
+                  type: string
+                  enum:
+                    - DOMESTIC
+                    - INTERNATIONAL
+                  description: Tax Type.
+              description: Tax Object
+            RevenueType:
+              type: string
+              enum:
+                - NEW
+                - RENEW
+                - TRANSFER
+            OrderItem:
+              required:
+                - itemIndex
+                - resourceId
+                - provisioningLegalEntityId
+                - servicingLegalEntityId
+                - period
+                - product
+                - revenueType
+                - resourceAmount
+                - taxTotal
+                - tax
+              type: object
+              properties:
+                itemIndex:
+                  type: integer
+                  description: "For invoice lines with multiple resources Index is relative to set of resources."
+                  format: int
+                  minimum: 0
+                  default: 0
+                resourceId:
+                  maxLength: 36
+                  type: string
+                  description: The source system identifier for this resource.
+                provisioningLegalEntityId:
+                  allOf:
+                    - $ref: "#/components/schemas/LegalEntities"
+                  description: The Provisioning Legal Entity for this resource. If not interco, then Selling Legal Entity.
+                servicingLegalEntityId:
+                  allOf:
+                    - $ref: "#/components/schemas/LegalEntities"
+                  description: The Servicing Legal Entity for this resource. If not interco, then Selling Legal Entity
+                period:
+                  $ref: "#/components/schemas/Period"
+                product:
+                  $ref: "#/components/schemas/Product"
+                revenueType:
+                  $ref: "#/components/schemas/RevenueType"
+                resourceAmount:
+                  $ref: "#/components/schemas/ResourceAmount"
+                subscription:
+                  $ref: "#/components/schemas/Subscription"
+                taxTotal:
+                  $ref: "#/components/schemas/Amount"
+                tax:
+                  $ref: "#/components/schemas/Tax"
+                customerSegment:
+                  $ref: "#/components/schemas/CustomerSegment"
+                fees:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Fee"
+              description: for multiple quantity it should be its own -> quantity > 1 must be split into individual OrderItems
+            Payment:
+              required:
+                - paymentId
+                - merchantAccountKey
+                - amountPaid
+              type: object
+              properties:
+                paymentId:
+                  maxLength: 36
+                  minLength: 1
+                  type: string
+                  description: >-
+                    Payment Index for multiple payments. Unique Payment Identifier field from transactional system
+                amountPaid:
+                  allOf:
+                    - $ref: "#/components/schemas/Amount"
+                  description: >-
+                    Total amount collected per payment method from customer for the sales order.
+                merchantAccountKey:
+                  $ref: "#/components/schemas/MerchantAccountKeys"
+              description: Payment Object
+            Order:
+              required:
+                - orderId
+                - customerId
+                - itemLineCount
+                - orderLegalEntityId
+                - createdAtLocal
+                - totalResourceAmount
+                - totalFees
+                - totalTaxAmount
+                - totalPaymentAmount
+                # - payments
+                # - orderItems
+                - billToCountry
+              type: object
+              properties:
+                orderId:
+                  maxLength: 36
+                  minLength: 1
+                  type: string
+                  description: Source System Order Id Value.
+                customerId:
+                  type: string
+                  # format: uuid
+                  description: An identifier for a customer
+                itemLineCount:
+                  type: integer
+                  description: Total Count of Sales Order Items included in this order..
+                  format: int
+                orderLegalEntityId:
+                  allOf:
+                    - $ref: "#/components/schemas/ARLegalEntities"
+                  description: >-
+                    Legal Entity/Accounting Entity where the Accounts Receivable has to be Booked. List of Legal Entities will be Provided.
+                createdAtLocal:
+                  type: string
+                  description: >-
+                    Dates MUST be represented as ISO 8601 formatted strings. Order Created Date locally with respect to Statutory Reporting Date
+                  # format: date-time
+                totalResourceAmount:
+                  $ref: "#/components/schemas/ResourceAmount"
+                  description: >-
+                    Control Value: The sum of all Resource Amounts.
+                totalFees:
+                  $ref: "#/components/schemas/Amount"
+                  description: >-
+                    Control Value:  The Sum of Fees
+                totalTaxAmount:
+                  $ref: "#/components/schemas/Amount"
+                  description: >-
+                    Control Value: The sum of all Tax Amounts if there are taxes associated to resources.
+                totalPaymentAmount:
+                  $ref: "#/components/schemas/Amount"
+                  description: >-
+                    Control Value: The sum of all payment amounts
+                billToCountry:
+                  type: string
+                  format: iso-country-code
+                  pattern: ^[A-Z][A-Z]$
+                  default: US
+                  description: Two-letter ISO country code. The customer billing country.
+                # orderItems:
+                #   type: array
+                #   items:
+                #     $ref: "#/components/schemas/OrderItem"
+                #   description: De-bundles sales order item resources
+                # payments:
+                #   type: array
+                #   items:
+                #     $ref: "#/components/schemas/Payment"
+                #   description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
+              additionalProperties: false
+              description: Sales Order Object
+            Orders:
+              required:
+                - requestId
+                - sourceSystemId
+                - Orders  
+              type: object
+              properties:
+                requestId:
+                  type: string
+                sourceSystemId:
+                  type: string
+                Orders:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/OrderMap"
+            OrderMap:
+              required:
+                - Order
+                # - payments
+                # - orderItems
+              type: object
+              properties:
+                Order:
+                  $ref: "#/components/schemas/Order"
+
+
+        # payments:
+        #   type: array
+        #   items:
+        #     $ref: "#/components/schemas/Payment"
+        #   description: A collection of payments for the sales order (MerchantAccountKey, AmountPaid)
+        # orderItems:
+        #   type: array
+        #   items:
+        #     $ref: "#/components/schemas/OrderItem"
+        #   description: De-bundles sales order item resources
+
+        x-amazon-apigateway-request-validators:
+          Validate body:
+            validateRequestParameters: false
+            validateRequestBody: true
+
+
+        # 'Fn::Transform':
+        #   Name: 'AWS::Include'
+        #   Parameters:
+        #     Location: s3://ascending-devops/spec/Sales_Order_Schema_Revised.yaml
       # Models: 
       #   Order:
       #     title: Model
