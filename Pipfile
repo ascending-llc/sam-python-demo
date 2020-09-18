@@ -4,12 +4,15 @@ verify_ssl = true
 name = 'pypi'
 
 [packages]
-awscli = "*"
-aws-sam-cli = "*"
-boto3 = "*"
+mysql-connector-python = "8.0.21"
 pytest = "*"
 pytest-mock = "*"
+
+[dev-packages]
+awscli = ">=1.8.140"
+aws-sam-cli = ">=1.2.0"
 sceptre = ">=2.3.0"
+boto3 = ">=1.14.63"
 
 [requires]
 python_version = '3.8.5'
