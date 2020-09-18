@@ -1,9 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  sam-app
+  Revenue API - Sales
 
-  Sample SAM Template for sam-app
+  Revenue API Template
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -23,15 +23,15 @@ Resources:
       CodeUri: src/
       Handler: app.lambda_handler
       Runtime: python3.8
-      Role: !GetAtt HelloWorldFunctionIamRole.Arn
+      Role: !GetAtt RevenueAPIFunctionIamRole.Arn
       Events:
-        ApiEvent:
+        OrdersEvent:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
             Path: /v1/sourceSystems/{sourceSystemId}/orders
             Method: post
             RestApiId: !Ref Api
-        ApiEvent2:
+        OrderEvent2:
           Type: Api 
           Properties:
             Path: /v1/sourceSystems/{sourceSystemId}/orders/{orderId}
@@ -108,7 +108,7 @@ Resources:
               x-amazon-apigateway-request-validator: "Validate body"
               x-amazon-apigateway-integration:
                 type: "aws_proxy"
-                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HelloWorldFunction.Arn}/invocations
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OrderSalesFunction.Arn}/invocations
                 passthroughBehavior: "when_no_match"
                 httpMethod: "POST"
 
@@ -160,7 +160,7 @@ Resources:
               x-amazon-apigateway-request-validator: "Validate body"
               x-amazon-apigateway-integration:
                 type: "aws_proxy"
-                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HelloWorldFunction.Arn}/invocations
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OrderSalesFunction.Arn}/invocations
                 passthroughBehavior: "when_no_match"
                 httpMethod: "POST"        
 
