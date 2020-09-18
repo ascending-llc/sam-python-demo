@@ -647,16 +647,13 @@ components:
       type: object
       properties:
         amountPaid:
-          allOf:
-            - $ref: "#/components/schemas/Amount"
+          $ref: "#/components/schemas/Amount"
           description: "price paid for product, not including taxes/fees"
         cost:
-          allOf:
-            - $ref: "#/components/schemas/Amount"
+          $ref: "#/components/schemas/Amount"
           description: "The direct cost for the product"
         listPrice:
-          allOf:
-            - $ref: "#/components/schemas/Amount"
+          $ref: "#/components/schemas/Amount"
           description: "List Price for the product"
       description: Resource Amount Object
     Fee:
@@ -816,7 +813,7 @@ components:
           description: Source System Order Id Value.
         customerId:
           type: string
-          format: uuid
+          # format: uuid
           description: An identifier for a customer
         itemLineCount:
           type: integer
@@ -833,23 +830,19 @@ components:
             Dates MUST be represented as ISO 8601 formatted strings. Order Created Date locally with respect to Statutory Reporting Date
           # format: date-time
         totalResourceAmount:
-          allOf:
-            - $ref: "#/components/schemas/ResourceAmount"
+          $ref: "#/components/schemas/ResourceAmount"
           description: >-
             Control Value: The sum of all Resource Amounts.
         totalFees:
-          allOf:
-            - $ref: "#/components/schemas/Amount"
+          $ref: "#/components/schemas/Amount"
           description: >-
             Control Value:  The Sum of Fees
         totalTaxAmount:
-          allOf:
-            - $ref: "#/components/schemas/Amount"
+          $ref: "#/components/schemas/Amount"
           description: >-
             Control Value: The sum of all Tax Amounts if there are taxes associated to resources.
         totalPaymentAmount:
-          allOf:
-            - $ref: "#/components/schemas/Amount"
+          $ref: "#/components/schemas/Amount"
           description: >-
             Control Value: The sum of all payment amounts
         billToCountry:
@@ -893,8 +886,7 @@ components:
       type: object
       properties:
         Order:
-          allOf:
-            - $ref: "#/components/schemas/Order"
+          $ref: "#/components/schemas/Order"
 
 
         # payments:
