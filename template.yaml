@@ -17,10 +17,10 @@ Globals:
       AllowOrigin: "'*'"
 
 Resources:
-  HelloWorldFunction:
+  OrderSalesFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: hello_world/
+      CodeUri: src/
       Handler: app.lambda_handler
       Runtime: python3.8
       Role: !GetAtt HelloWorldFunctionIamRole.Arn
@@ -38,7 +38,7 @@ Resources:
             Method: post
             RestApiId: !Ref Api
 
-  HelloWorldFunctionIamRole:
+  RevenueAPIFunctionIamRole:
     Type: AWS::IAM::Role
     Properties: 
       AssumeRolePolicyDocument: 
@@ -53,7 +53,7 @@ Resources:
               - sts:AssumeRole
       Policies:
         -
-          PolicyName: HelloWorldPolicy
+          PolicyName: RevPolicy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
