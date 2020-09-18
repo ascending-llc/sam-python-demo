@@ -245,3 +245,5 @@ $RECYCLE.BIN/
 
 
 packaged.yaml
+Pipfile.lock
+package
