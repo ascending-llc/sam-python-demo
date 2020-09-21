@@ -959,6 +959,12 @@ Resources:
               additionalProperties: false
               description: Sales Order Object
 
+        x-amazon-apigateway-gateway-responses:
+          BAD_REQUEST_BODY:
+            statusCode: 400
+            responseTemplates:
+              application/json: "{\"error\": $context.error.messageString, \"message\": $context.error.validationErrorString, \"type\": $context.error.responseType }"
+
         x-amazon-apigateway-request-validators:
           Validate body:
             validateRequestParameters: false
