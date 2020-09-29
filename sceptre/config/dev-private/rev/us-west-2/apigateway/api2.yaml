@@ -1,4 +1,4 @@
-template_path: "ApiGatewayTemplate.yaml"
+template_path: ApiGatewayTemplate.yaml
 
 parameters:
   CatalogVersion: 1.7.0

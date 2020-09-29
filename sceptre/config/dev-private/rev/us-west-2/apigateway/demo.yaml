@@ -1,0 +1,4 @@
+template_path: demo.yaml
+
+parameters:
+  ApiName: rev-test-api
