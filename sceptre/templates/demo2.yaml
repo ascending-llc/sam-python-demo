@@ -1,0 +1,901 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: API Gateway
+Parameters:
+  ApiName:
+    Type: String
+    Description: (required) API Name
+  ApiEndpoint:
+    Type: String
+    Description: '(required) HTTP endpoint for back end API (ELB, EC2, etc.)'
+  BinaryMediaTypes:
+    Type: CommaDelimitedList
+    Description: List of binary media types.
+    Default: ''
+  EndpointType:
+    Type: String
+    Description: >-
+      (optional) Type of API Gateway (PRIVATE, REGIONAL, EDGE), defaulted to
+      PRIVATE.
+    Default: PRIVATE
+    AllowedValues:
+      - PRIVATE
+      - REGIONAL
+      - EDGE
+  RequireApiKey:
+    Type: String
+    Description: (optional) Set to false to not require API Keys.
+    Default: true
+    AllowedValues:
+      - true
+      - false
+  DisableIamAuth:
+    Type: String
+    Description: >-
+      (optional) Set to true to disable IAM Auth for Public API Gateways (please
+      be very mindful and careful with this).
+    Default: false
+    AllowedValues:
+      - false
+      - true
+  DisableSetupIntegration:
+    Type: String
+    Description: >-
+      (optional) Set to true to disable method that wires up VPCs and lambda
+      proxy, use this if you want to have multiple lambda functions
+    Default: false
+    AllowedValues:
+      - false
+      - true
+  DisableSetupAuthorizer:
+    Type: String
+    Description: >-
+      (optional) Set to true to disable SetupApi lambda override authorizers for
+      API resources
+    Default: false
+    AllowedValues:
+      - false
+      - true
+  ApiEndpointSecurityGroupId:
+    Type: String
+    Description: >-
+      (optional) Security Group that needs to allow Ingress from the Gateway
+      Proxy. Leave blank if hitting an On Prem endpoint or using NLBs
+    Default: ''
+  NlbArn:
+    Type: String
+    Description: (optional) NLB ARN to use instead of a Lambda Proxy.
+    Default: ''
+  ApiSpecS3Bucket:
+    Type: String
+    Description: (required) S3 Bucket containing OpenAPI spec
+  ApiSpecS3Key:
+    Type: String
+    Description: (required) S3 Key for OpenAPI spec
+  ApiSpecS3Version:
+    Type: String
+    Description: (optional) S3 Object version for OpenAPI spec
+    Default: ''
+  ApiSpecS3ETag:
+    Type: String
+    Description: (optional) S3 ETag file checksum for OpenAPI spec
+    Default: ''
+  CustomLambdaProxyS3Bucket:
+    Type: String
+    Description: (optional) S3 Bucket containing custom Lambda Proxy Python 3.6 code
+    Default: ''
+  CustomLambdaProxyS3Key:
+    Type: String
+    Description: (optional) S3 Key for custom Lambda Proxy Python 3.6 code
+    Default: ''
+  CustomLambdaProxyFunctionName:
+    Type: String
+    Description: >-
+      (optional) Name of the Lambda function. If not specified, AWS
+      CloudFormation generates one
+    Default: ''
+  CustomAuthorizerLambdaName:
+    Type: String
+    Description: >-
+      (optional) Name of the Lambda function for JWT Authorizer. If not
+      specified, uses deafult JwtLambdaFunction
+    Default: ''
+  ResourcePolicy:
+    Type: String
+    Description: >-
+      (optional) JSON Resource Policy that sets permissions to the API, if left
+      blank it will be set to Deny All
+    Default: ''
+  ApiDescription:
+    Type: String
+    Description: (optional) API description
+    Default: ''
+  MinimumCompressionSize:
+    Type: Number
+    Description: >-
+      (optional) Minimum Payload size in bytes to compress (max 10485760). Set
+      to -1 to disable, or set to 0 to compress all payloads
+    Default: -1
+    MinValue: -1
+    MaxValue: 10485760
+  CustomDomainName:
+    Type: String
+    Description: (optional) Custom Domain Name
+    Default: ''
+  CustomDomainAcmCertificateId:
+    Type: String
+    Description: (optional) ID of the ACM Certificate to use for the Custom Domain Name
+    Default: ''
+  CustomDomainAcmCertificateRegion:
+    Type: String
+    Description: >-
+      (optional) The region where the certificate is created. Leave it blank to
+      use the current region.
+    Default: ''
+    MaxLength: 63
+    AllowedPattern: '(|[a-z][a-z0-9-]+[0-9])'
+  DesiredBasePath:
+    Type: String
+    Description: (optional) Base Path for Custom Domains
+    Default: ''
+  ExistingVpcLinkId:
+    Type: String
+    Description: >-
+      (optional) ID of existing VPC Link to NLB to use, if multiple APIGs are
+      sharing the same NLB
+    Default: ''
+  EnableWebAppProxy:
+    Type: String
+    Description: >-
+      Set to true to enable HTTP Proxy mode with NLBs. Required for serving HTML
+      and ideal if IAM ARN Header injection is not necessary.
+    Default: false
+    AllowedValues:
+      - false
+      - true
+  EnableJwtAuth:
+    Type: String
+    Description: >-
+      Set to true to use JWT Authorizer for Public API Gateways. IAM Auth must
+      be disabled by setting DisableIamAuth to true.
+    Default: false
+    AllowedValues:
+      - false
+      - true
+  SsoJwtEndpoint:
+    Type: String
+    Description: '(optional) If using JWT Authorizer, the SSO Endpoint to verify against.'
+    Default: sso.godaddy.com
+  SsoClientCertSecret:
+    Type: String
+    Description: >-
+      (optional) If using JWT Authorizer, the secret name in Secrets Manager
+      that contains the SSO client certificate. This certificate can be used to
+      call the non-prod SSO API Proxy endpoints.
+    Default: ''
+  SsoClientCertKeySecret:
+    Type: String
+    Description: >-
+      (optional) If using JWT Authorizer, the secret name in Secrets Manager
+      that contains the SSO client certificate's private key. This can be used
+      together with the client certificate to call the non-prod SSO API Proxy
+      endpoints.
+    Default: ''
+  EnableAuthBearerType:
+    Type: String
+    Description: >-
+      Allow SSO authenticaiton lambda to accept 'bearer' type in the
+      authenticate header (support for OAuth2)
+    AllowedValues:
+      - true
+      - false
+    Default: false
+  PrivateSsoDxSubnetIds:
+    Type: CommaDelimitedList
+    Description: List Private DX Subnet IDs if Private SSO Endpoints are necessary.
+    Default: ''
+  PrivateSecurityGroup:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::SecurityGroup::Id>'
+    Description: SSM parameter referencing the private security group ID
+    Default: /AdminParams/VPC/PrivateSG
+    AllowedPattern: '/AdminParams/VPC[2-9]{0,1}/PrivateSG'
+  RateLimit:
+    Type: Number
+    Description: (optional) Maximum API calls per Method per 1s interval.
+    Default: 5000
+  BurstLimit:
+    Type: Number
+    Description: (optional) Maximum API calls per Method per 1ms interval.
+    Default: 500
+  ResponseTimeoutMS:
+    Type: Number
+    Description: (optional) APIG response timeout in ms.
+    Default: 29000
+  CustomWafAclArn:
+    Type: String
+    Description: >-
+      (optional) ARN of the desired WAF V2 ACL, if not provided the default ACL
+      provided by security will be used.
+    Default: ''
+  LambdaS3Bucket:
+    Type: 'AWS::SSM::Parameter::Value<String>'
+    Description: >-
+      (required) SSM parameter referencing the S3 Bucket which contains the
+      Lambda code
+    Default: /AdminParams/Team/GlobalBucket
+    AllowedValues:
+      - /AdminParams/Team/GlobalBucket
+  VPC:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::VPC::Id>'
+    Description: (required) SSM Parameter for VPC ID
+    Default: /AdminParams/VPC/ID
+    AllowedPattern: '/AdminParams/VPC[2-9]{0,1}/ID'
+  PrivateSubnets:
+    Type: 'AWS::SSM::Parameter::Value<List<String>>'
+    Description: >-
+      (required) SSM parameter referencing the private subnet IDs. Update to
+      DXAPPSubnets to allow DX access
+    Default: /AdminParams/VPC/PrivateSubnets
+    AllowedPattern: '/AdminParams/VPC[2-9]{0,1}/(Private|DXAPP)Subnets'
+  AuthorizerResultTtlInSeconds:
+    Type: Number
+    Description: >-
+      (optional) If using JWT Authorizer, the time-to-live (TTL) period, in
+      seconds, that specifies how long API Gateway caches authorizer results.
+    MaxValue: 3600
+    MinValue: 0
+    Default: 0
+  AuthorizerIdentitySource:
+    Type: String
+    Description: >-
+      (optional) If using JWT Authorizer, the identity source for which
+      authorization is requested.
+    Default: ''
+  DefaultLogLevel:
+    Type: String
+    Description: >-
+      (optional) The default log level for the API from OFF, ERROR or INFO.
+      Defaults to ERROR.
+    Default: ERROR
+    AllowedValues:
+      - ERROR
+      - INFO
+      - false
+  CustomLambdaExecutionRoleSuffix:
+    Type: String
+    Description: Custom Lambda execution role suffix
+    Default: ''
+  DevelopmentTeam:
+    Type: 'AWS::SSM::Parameter::Value<String>'
+    Description: SSM Parameter for team owning the created resources.
+    Default: /AdminParams/Team/Name
+    AllowedValues:
+      - /AdminParams/Team/Name
+  DefaultWafAclArn:
+    Type: 'AWS::SSM::Parameter::Value<String>'
+    Description: SSM Parameter for default WAF V2 ACL.
+    Default: /AdminParams/Security/WAFv2/WebACLv2/ARN
+    AllowedValues:
+      - /AdminParams/Security/WAFv2/WebACLv2/ARN
+Conditions:
+  HasBinaryMediaTypes:
+    'Fn::Not':
+      - 'Fn::Equals':
+          - 'Fn::Join':
+              - ''
+              - Ref: BinaryMediaTypes
+          - ''
+  UseSpecificVersion:
+    'Fn::Not':
+      - 'Fn::Equals':
+          - Ref: ApiSpecS3Version
+          - ''
+  RunChecksumValidation:
+    'Fn::Not':
+      - 'Fn::Equals':
+          - Ref: ApiSpecS3ETag
+          - ''
+  HasResourcePolicy:
+    'Fn::Not':
+      - 'Fn::Equals':
+          - Ref: ResourcePolicy
+          - ''
+  EnableCompression:
+    'Fn::Not':
+      - 'Fn::Equals':
+          - Ref: MinimumCompressionSize
+          - -1
+  UsingNlb:
+    'Fn::Or':
+      - 'Fn::Not':
+          - 'Fn::Equals':
+              - Ref: NlbArn
+              - ''
+      - 'Fn::Not':
+          - 'Fn::Equals':
+              - Ref: ExistingVpcLinkId
+              - ''
+  NeedNewVpcLink:
+    'Fn::And':
+      - Condition: UsingNlb
+      - 'Fn::Equals':
+          - Ref: ExistingVpcLinkId
+          - ''
+  UsingSetupIntegrationFunction:
+    'Fn::Not':
+      - 'Fn::Equals':
+          - Ref: DisableSetupIntegration
+          - 'true'
+  UsingSetupAuthorizerFunction:
+    'Fn::Not':
+      - 'Fn::Equals':
+          - Ref: DisableSetupAuthorizer
+          - 'true'
+  UsingProxy:
+    'Fn::And':
+      - Condition: UsingSetupIntegrationFunction
+      - 'Fn::Not':
+          - Condition: UsingNlb
+  UsingCustomProxy:
+    'Fn::And':
+      - Condition: UsingProxy
+      - 'Fn::And':
+          - 'Fn::Not':
+              - 'Fn::Equals':
+                  - Ref: CustomLambdaProxyS3Bucket
+                  - ''
+          - 'Fn::Not':
+              - 'Fn::Equals':
+                  - Ref: CustomLambdaProxyS3Key
+                  - ''
+  UsingCustomProxyName:
+    'Fn::And':
+      - Condition: UsingCustomProxy
+      - 'Fn::Not':
+          - 'Fn::Equals':
+              - Ref: CustomLambdaProxyFunctionName
+              - ''
+  NeedsIngressRule:
+    'Fn::And':
+      - Condition: UsingProxy
+      - 'Fn::Not':
+          - 'Fn::Equals':
+              - Ref: ApiEndpointSecurityGroupId
+              - ''
+  IsPublicGateway:
+    'Fn::Not':
+      - 'Fn::Equals':
+          - Ref: EndpointType
+          - PRIVATE
+  DisableIamAuthentication:
+    'Fn::And':
+      - Condition: IsPublicGateway
+      - 'Fn::Equals':
+          - Ref: DisableIamAuth
+          - true
+  EnableJwtAuthentication:
+    'Fn::And':
+      - Condition: DisableIamAuthentication
+      - 'Fn::Equals':
+          - Ref: EnableJwtAuth
+          - true
+  RequireApiKeys:
+    'Fn::Equals':
+      - Ref: RequireApiKey
+      - true
+  UsingCustomDomain:
+    'Fn::And':
+      - Condition: IsPublicGateway
+      - 'Fn::And':
+          - 'Fn::Not':
+              - 'Fn::Equals':
+                  - Ref: CustomDomainName
+                  - ''
+          - 'Fn::Not':
+              - 'Fn::Equals':
+                  - Ref: CustomDomainAcmCertificateId
+                  - ''
+  UsingCustomAuthorizer:
+    'Fn::And':
+      - Condition: EnableJwtAuthentication
+      - 'Fn::Not':
+          - 'Fn::Equals':
+              - Ref: CustomAuthorizerLambdaName
+              - ''
+  NeedJWTLambdaFunction:
+    'Fn::And':
+      - Condition: EnableJwtAuthentication
+      - 'Fn::Equals':
+          - Ref: CustomAuthorizerLambdaName
+          - ''
+  EnableAuthBearerTokenType:
+    'Fn::And':
+      - Condition: NeedJWTLambdaFunction
+      - 'Fn::Equals':
+          - Ref: EnableAuthBearerType
+          - true
+  IsRegional:
+    'Fn::Equals':
+      - Ref: EndpointType
+      - REGIONAL
+  NeedsPrivateSsoAccess:
+    'Fn::Not':
+      - 'Fn::Equals':
+          - 'Fn::Join':
+              - ''
+              - Ref: PrivateSsoDxSubnetIds
+          - ''
+  IsCertificateLocal:
+    'Fn::Equals':
+      - Ref: CustomDomainAcmCertificateRegion
+      - ''
+  UsingStandardRole:
+    'Fn::Equals':
+      - Ref: CustomLambdaExecutionRoleSuffix
+      - ''
+  UsingStandardWafAcl:
+    'Fn::Equals':
+      - Ref: CustomWafAclArn
+      - ''
+Resources:
+  ProxySecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Condition: UsingProxy
+    Properties:
+      GroupName:
+        'Fn::Sub': '${ApiName}-gateway-proxy-sg'
+      GroupDescription: Lambda Proxy SG for API Gateway
+      VpcId:
+        Ref: VPC
+  ProxyTargetIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Condition: NeedsIngressRule
+    Properties:
+      Description: Allow API Gateway Proxy to forward traffic
+      GroupId:
+        Ref: ApiEndpointSecurityGroupId
+      SourceSecurityGroupId:
+        Ref: ProxySecurityGroup
+      FromPort: 443
+      ToPort: 443
+      IpProtocol: TCP
+    DependsOn:
+      - ProxySecurityGroup
+  ProxyLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Condition: UsingProxy
+    Properties:
+      Handler:
+        'Fn::If':
+          - UsingCustomProxy
+          - index.proxy_handler
+          - api_proxy.index.proxy_handler
+      FunctionName:
+        'Fn::If':
+          - UsingCustomProxyName
+          - Ref: CustomLambdaProxyFunctionName
+          - Ref: 'AWS::NoValue'
+      Role:
+        'Fn::If':
+          - UsingStandardRole
+          - 'Fn::Sub': 'arn:aws:iam::${AWS::AccountId}:role/GD-APPSVCS-LambdaExecutionRole'
+          - 'Fn::Sub': >-
+              arn:aws:iam::${AWS::AccountId}:role/${DevelopmentTeam}-custom-${CustomLambdaExecutionRoleSuffix}
+      Code:
+        S3Bucket:
+          'Fn::If':
+            - UsingCustomProxy
+            - Ref: CustomLambdaProxyS3Bucket
+            - Ref: LambdaS3Bucket
+        S3Key:
+          'Fn::If':
+            - UsingCustomProxy
+            - Ref: CustomLambdaProxyS3Key
+            - apigateway/api_proxy/api_proxy-1.0.2.zip
+      Environment:
+        Variables:
+          API_ENDPOINT:
+            Ref: ApiEndpoint
+          OWNER_ACCOUNT_ID:
+            Ref: 'AWS::AccountId'
+      Runtime: python3.6
+      Timeout: 30
+      TracingConfig:
+        Mode: Active
+      VpcConfig:
+        SecurityGroupIds:
+          - Ref: ProxySecurityGroup
+        SubnetIds:
+          Ref: PrivateSubnets
+    DependsOn:
+      - ProxySecurityGroup
+  JwtLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Condition: NeedJWTLambdaFunction
+    Properties:
+      Handler: jwt_authorizer.index.authorizer_handler
+      Role:
+        'Fn::Sub': 'arn:aws:iam::${AWS::AccountId}:role/GD-APPSVCS-LambdaExecutionRole'
+      Code:
+        S3Bucket:
+          Ref: LambdaS3Bucket
+        S3Key: security/jwt_authorizer/jwt_authorizer-1.4.4.zip
+      Environment:
+        Variables:
+          SSO_HOST:
+            Ref: SsoJwtEndpoint
+          SSO_BEARER_MARKER:
+            'Fn::If':
+              - EnableAuthBearerTokenType
+              - bearer
+              - Ref: 'AWS::NoValue'
+          SSO_CLIENT_CERT_CRT:
+            Ref: SsoClientCertSecret
+          SSO_CLIENT_CERT_KEY:
+            Ref: SsoClientCertKeySecret
+      Runtime: python3.7
+      Timeout: 30
+      MemorySize: 256
+      VpcConfig:
+        'Fn::If':
+          - NeedsPrivateSsoAccess
+          - SecurityGroupIds:
+              - Ref: PrivateSecurityGroup
+            SubnetIds:
+              Ref: PrivateSsoDxSubnetIds
+          - Ref: 'AWS::NoValue'
+  SetupApiLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: SetupAPIGPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'apigateway:*'
+                  - 'wafv2:AssociateWebACL'
+                Resource: '*'
+  SetupApiLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: api_setup.index.setup_handler
+      Role:
+        'Fn::GetAtt': SetupApiLambdaRole.Arn
+      Code:
+        S3Bucket:
+          Ref: LambdaS3Bucket
+        S3Key: apigateway/api_setup/api_setup-1.6.0.zip
+      Runtime: python3.6
+      Timeout: 900
+  VpcLink:
+    Type: 'AWS::ApiGateway::VpcLink'
+    Condition: NeedNewVpcLink
+    Properties:
+      Name:
+        'Fn::Sub': '${ApiName}-link'
+      TargetArns:
+        - Ref: NlbArn
+  Gateway:
+    Type: 'AWS::ApiGateway::RestApi'
+    Properties:
+      ApiKeySourceType:
+        'Fn::If':
+          - RequireApiKeys
+          - HEADER
+          - Ref: 'AWS::NoValue'
+      BodyS3Location:
+        Bucket:
+          Ref: ApiSpecS3Bucket
+        Key:
+          Ref: ApiSpecS3Key
+        Version:
+          'Fn::If':
+            - UseSpecificVersion
+            - Ref: ApiSpecS3Version
+            - Ref: 'AWS::NoValue'
+        ETag:
+          'Fn::If':
+            - RunChecksumValidation
+            - Ref: ApiSpecS3ETag
+            - Ref: 'AWS::NoValue'
+      Description:
+        Ref: ApiDescription
+      EndpointConfiguration:
+        Types:
+          - Ref: EndpointType
+      MinimumCompressionSize:
+        'Fn::If':
+          - EnableCompression
+          - Ref: MinimumCompressionSize
+          - Ref: 'AWS::NoValue'
+      Name:
+        Ref: ApiName
+      BinaryMediaTypes:
+        'Fn::If':
+          - HasBinaryMediaTypes
+          - Ref: BinaryMediaTypes
+          - Ref: 'AWS::NoValue'
+      Policy:
+        'Fn::If':
+          - DisableIamAuthentication
+          - Ref: 'AWS::NoValue'
+          - 'Fn::If':
+              - HasResourcePolicy
+              - Ref: ResourcePolicy
+              - Version: '2012-10-17'
+                Statement:
+                  - Effect: Deny
+                    Principal: '*'
+                    Action: 'execute-api:Invoke'
+                    Resource: 'execute-api:/*'
+  GatewayRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'Fn::Sub': >-
+            arn:aws:iam::${AWS::AccountId}:policy/AllowResourcesAccessToCloudWatchPolicy
+      Policies:
+        - PolicyName: xray-tracing
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'xray:Put*'
+                Resource: '*'
+        - 'Fn::If':
+            - UsingProxy
+            - PolicyName: execute-proxy
+              PolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                  - Effect: Allow
+                    Action:
+                      - 'lambda:InvokeFunction'
+                    Resource:
+                      'Fn::Sub': >-
+                        arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProxyLambdaFunction}
+            - Ref: 'AWS::NoValue'
+    DependsOn:
+      - Gateway
+  GatewayLambdaPermission:
+    Type: 'AWS::Lambda::Permission'
+    Condition: UsingProxy
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName:
+        Ref: ProxyLambdaFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        'Fn::Sub': 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Gateway}/*'
+    DependsOn:
+      - ProxyLambdaFunction
+      - Gateway
+  SetupApi:
+    Type: 'Custom::SetupApi'
+    Properties:
+      ServiceToken:
+        'Fn::GetAtt': SetupApiLambdaFunction.Arn
+      RestApiId:
+        Ref: Gateway
+      ProxyLambda:
+        'Fn::If':
+          - UsingProxy
+          - Ref: ProxyLambdaFunction
+          - Ref: 'AWS::NoValue'
+      CreatedLambdaPermission:
+        'Fn::If':
+          - UsingProxy
+          - Ref: GatewayLambdaPermission
+          - Ref: 'AWS::NoValue'
+      NlbConnectionId:
+        'Fn::If':
+          - UsingNlb
+          - 'Fn::If':
+              - NeedNewVpcLink
+              - Ref: VpcLink
+              - Ref: ExistingVpcLinkId
+          - Ref: 'AWS::NoValue'
+      NlbEndpoint:
+        'Fn::If':
+          - UsingNlb
+          - Ref: ApiEndpoint
+          - Ref: 'AWS::NoValue'
+      ApiSpecS3Bucket:
+        Ref: ApiSpecS3Bucket
+      ApiSpecS3Key:
+        Ref: ApiSpecS3Key
+      ApiSpecS3Version:
+        Ref: ApiSpecS3Version
+      ApiSpecS3ETag:
+        Ref: ApiSpecS3ETag
+      ApiDescription:
+        Ref: ApiDescription
+      MinimumCompressionSize:
+        Ref: MinimumCompressionSize
+      ResourcePolicy:
+        Ref: ResourcePolicy
+      GatewayType:
+        Ref: EndpointType
+      DisableIamAuth:
+        'Fn::If':
+          - DisableIamAuthentication
+          - true
+          - false
+      RequireApiKey:
+        'Fn::If':
+          - RequireApiKeys
+          - true
+          - false
+      SkipIntegrationSetup:
+        'Fn::If':
+          - UsingSetupIntegrationFunction
+          - false
+          - true
+      SkipAuthorizerSetup:
+        'Fn::If':
+          - UsingSetupAuthorizerFunction
+          - false
+          - true
+      DeploymentStage: gddeploy
+      IsWebApp:
+        Ref: EnableWebAppProxy
+      AuthorizerResultTtlInSeconds:
+        Ref: AuthorizerResultTtlInSeconds
+      AuthorizerIdentitySource:
+        Ref: AuthorizerIdentitySource
+      CustomAuthorizerFunction:
+        'Fn::If':
+          - EnableJwtAuthentication
+          - 'Fn::If':
+              - UsingCustomAuthorizer
+              - Ref: CustomAuthorizerLambdaName
+              - Ref: JwtLambdaFunction
+          - Ref: 'AWS::NoValue'
+      RateLimit:
+        Ref: RateLimit
+      BurstLimit:
+        Ref: BurstLimit
+      ResponseTimeout:
+        Ref: ResponseTimeoutMS
+      DefaultLogLevel:
+        Ref: DefaultLogLevel
+      WAFAclArn:
+        'Fn::If':
+          - UsingStandardWafAcl
+          - Ref: DefaultWafAclArn
+          - Ref: CustomWafAclArn
+    DependsOn:
+      - GatewayRole
+  GatewayJwtLambdaPermission:
+    Type: 'AWS::Lambda::Permission'
+    Condition: EnableJwtAuthentication
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName:
+        'Fn::If':
+          - UsingCustomAuthorizer
+          - Ref: CustomAuthorizerLambdaName
+          - Ref: JwtLambdaFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        'Fn::Sub': >-
+          arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Gateway}/authorizers/${SetupApi.JwtAuthorizerId}
+    DependsOn:
+      - SetupApi
+  CustomDomain:
+    Type: 'AWS::ApiGateway::DomainName'
+    Condition: UsingCustomDomain
+    Properties:
+      DomainName:
+        Ref: CustomDomainName
+      SecurityPolicy: TLS_1_2
+      EndpointConfiguration:
+        Types:
+          - Ref: EndpointType
+      RegionalCertificateArn:
+        'Fn::If':
+          - IsRegional
+          - 'Fn::Sub': >-
+              arn:aws:acm:${AWS::Region}:${AWS::AccountId}:certificate/${CustomDomainAcmCertificateId}
+          - Ref: 'AWS::NoValue'
+      CertificateArn:
+        'Fn::If':
+          - IsRegional
+          - Ref: 'AWS::NoValue'
+          - 'Fn::If':
+              - IsCertificateLocal
+              - 'Fn::Sub': >-
+                  arn:aws:acm:${AWS::Region}:${AWS::AccountId}:certificate/${CustomDomainAcmCertificateId}
+              - 'Fn::Sub': >-
+                  arn:aws:acm:${CustomDomainAcmCertificateRegion}:${AWS::AccountId}:certificate/${CustomDomainAcmCertificateId}
+  CustomDomainBasePathMapping:
+    Type: 'AWS::ApiGateway::BasePathMapping'
+    Condition: UsingCustomDomain
+    Properties:
+      BasePath:
+        Ref: DesiredBasePath
+      DomainName:
+        Ref: CustomDomainName
+      RestApiId:
+        Ref: Gateway
+      Stage: gddeploy
+    DependsOn:
+      - CustomDomain
+      - SetupApi
+  CloudWatchSetup:
+    Type: 'AWS::ApiGateway::Account'
+    Properties:
+      CloudWatchRoleArn:
+        'Fn::GetAtt': GatewayRole.Arn
+    DependsOn:
+      - GatewayRole
+  GatewayIDParam:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name:
+        'Fn::Sub': '/Team/APIGateway/${ApiName}/ID'
+      Type: String
+      Description:
+        'Fn::Sub': 'ID of ${ApiName} Gateway'
+      Value:
+        Ref: Gateway
+    DependsOn:
+      - Gateway
+  CustomDomainNameParameter:
+    Condition: UsingCustomDomain
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name:
+        'Fn::Sub': '/Team/APIGateway/${ApiName}/Domain/Name'
+      Type: String
+      Description: Name of the API Gateway Domain
+      Value:
+        'Fn::If':
+          - IsRegional
+          - 'Fn::GetAtt': CustomDomain.RegionalDomainName
+          - 'Fn::GetAtt': CustomDomain.DistributionDomainName
+    DependsOn:
+      - CustomDomain
+  CustomDomainHostedZoneParameter:
+    Condition: UsingCustomDomain
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name:
+        'Fn::Sub': '/Team/APIGateway/${ApiName}/Domain/HostedZoneId'
+      Type: String
+      Description: Hosted Zone ID of the API Gateway Domain
+      Value:
+        'Fn::If':
+          - IsRegional
+          - 'Fn::GetAtt': CustomDomain.RegionalHostedZoneId
+          - 'Fn::GetAtt': CustomDomain.DistributionHostedZoneId
+    DependsOn:
+      - CustomDomain
+Outputs:
+  ApiId:
+    Description: ID of API Gateway
+    Value:
+      Ref: Gateway
+Rules: {}
